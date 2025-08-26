@@ -75,7 +75,7 @@ jobs:
           --no-build \
           --output ./publish/api
           
-    - name: Publish Web artifacts  
+    - name: Publish Web artifacts
       if: github.ref == 'refs/heads/main'
       run: |
         dotnet publish src/Mpm.Web/Mpm.Web.csproj \
