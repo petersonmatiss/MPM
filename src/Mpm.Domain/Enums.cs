@@ -77,3 +77,20 @@ public enum NCRDisposition
     UseAsIs,
     Scrap
 }
+
+public enum NotificationType
+{
+    Info,
+    Warning,
+    Error,
+    Success,
+    Reminder
+}
+
+public enum NotificationPriority
+{
+    Low,
+    Normal,
+    High,
+    Critical
+}
