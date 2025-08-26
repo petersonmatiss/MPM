@@ -175,7 +175,7 @@ public class ProfileService : IProfileService
                 throw new InvalidOperationException("Cannot delete profile that has been used or has remnants.");
             }
 
-            // Soft delete by setting IsDeleted to true (inherited from BaseEntity)
+            // Soft delete by setting IsDeleted to true (inherited from TenantEntity)
             profile.IsDeleted = true;
             await _context.SaveChangesAsync();
         }
