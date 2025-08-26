@@ -20,6 +20,17 @@ public static class Constants
         public const string EUR = "EUR";
         public const string USD = "USD";
         public const string GBP = "GBP";
+        
+        public static readonly string[] ValidCurrencies = 
+        {
+            EUR, USD, GBP, "AUD", "CAD", "CHF", "CNY", "DKK", "HKD", "JPY", 
+            "NOK", "NZD", "PLN", "SEK", "SGD", "ZAR"
+        };
+        
+        public static bool IsValidCurrency(string currency)
+        {
+            return ValidCurrencies.Contains(currency?.ToUpperInvariant());
+        }
     }
 
     public static class UnitOfMeasure

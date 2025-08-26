@@ -1,0 +1,211 @@
+@page "/invoices"
+@inject IInvoiceService InvoiceService
+@inject ISupplierService SupplierService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Invoices - MPM</PageTitle>
+
+<MudText Variant="Variant.H3" GutterBottom="true">Invoices</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex gap-4">
+                <MudTextField @bind-Value="searchString" Placeholder="Search invoices..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                <MudSelect @bind-Value="selectedSupplierId" Label="Filter by Supplier" Clearable="true" 
+                          Class="mt-0" OnClearButtonClick="ClearSupplierFilter">
+                    @foreach (var supplier in suppliers)
+                    {
+                        <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker @bind-Date="fromDate" Label="From Date" Clearable="true" Class="mt-0" />
+                <MudDatePicker @bind-Date="toDate" Label="To Date" Clearable="true" Class="mt-0" />
+                <MudButton Variant="Variant.Outlined" OnClick="ApplyFilters">Apply Filters</MudButton>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+                New Invoice
+            </MudButton>
+        </div>
+
+        <MudDataGrid Items="@invoices" Filterable="false" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="10" Dense="true">
+            <Columns>
+                <PropertyColumn Property="x => x.Number" Title="Invoice #" />
+                <PropertyColumn Property="x => x.Supplier!.Name" Title="Supplier" />
+                <PropertyColumn Property="x => x.InvoiceDate" Title="Date" Format="yyyy-MM-dd" />
+                <PropertyColumn Property="x => x.Currency" Title="Currency" />
+                <PropertyColumn Property="x => x.TotalAmount" Title="Total" Format="C2" />
+                <PropertyColumn Property="x => x.IsReceived" Title="Status">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.IsReceived ? Color.Success : Color.Warning)" 
+                                Size="Size.Small">
+                            @(context.Item.IsReceived ? "Received" : "Pending")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn Title="Lines" CellClass="d-flex justify-center">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" 
+                                      Icon="@(expandedInvoices.Contains(context.Item!.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                      OnClick="@(() => ToggleExpand(context.Item!.Id))" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn CellClass="d-flex justify-end">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                      OnClick="@(() => OpenEditDialog(context.Item))" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewInvoice(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <ChildRowContent>
+                @if (expandedInvoices.Contains(context.Item!.Id))
+                {
+                    <MudCard>
+                        <MudCardContent>
+                            <MudText Variant="Variant.H6">Invoice Lines</MudText>
+                            @if (context.Item.Lines?.Any() == true)
+                            {
+                                <MudTable Items="context.Item.Lines" Dense="true" Hover="true">
+                                    <HeaderContent>
+                                        <MudTh>Description</MudTh>
+                                        <MudTh>Type</MudTh>
+                                        <MudTh>Quantity</MudTh>
+                                        <MudTh>Unit Price</MudTh>
+                                        <MudTh>Total Price</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="line">
+                                        <MudTd DataLabel="Description">@line.Description</MudTd>
+                                        <MudTd DataLabel="Type">@line.ItemType</MudTd>
+                                        <MudTd DataLabel="Quantity">@line.Quantity.ToString("F2") @line.UnitOfMeasure</MudTd>
+                                        <MudTd DataLabel="Unit Price">@line.UnitPrice.ToString("C2")</MudTd>
+                                        <MudTd DataLabel="Total Price">@line.TotalPrice.ToString("C2")</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                            else
+                            {
+                                <MudText Color="Color.Secondary">No lines added yet</MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </ChildRowContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<Invoice> invoices = new();
+    private List<Supplier> suppliers = new();
+    private bool loading = true;
+    private string searchString = "";
+    private int? selectedSupplierId;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private HashSet<int> expandedInvoices = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        try
+        {
+            var suppliersTask = SupplierService.GetAllAsync();
+            var invoicesTask = InvoiceService.GetAllAsync();
+            
+            await Task.WhenAll(suppliersTask, invoicesTask);
+            
+            suppliers = suppliersTask.Result.ToList();
+            invoices = invoicesTask.Result.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        loading = true;
+        try
+        {
+            invoices = (await InvoiceService.GetAllAsync(selectedSupplierId, fromDate, toDate)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error applying filters: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ClearSupplierFilter()
+    {
+        selectedSupplierId = null;
+    }
+
+    private void ToggleExpand(int invoiceId)
+    {
+        if (expandedInvoices.Contains(invoiceId))
+        {
+            expandedInvoices.Remove(invoiceId);
+        }
+        else
+        {
+            expandedInvoices.Add(invoiceId);
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters { ["Suppliers"] = suppliers };
+        var dialog = DialogService.Show<InvoiceDialog>("Create Invoice", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+            Snackbar.Add("Invoice created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Invoice invoice)
+    {
+        var parameters = new DialogParameters 
+        { 
+            ["Invoice"] = invoice,
+            ["Suppliers"] = suppliers
+        };
+        var dialog = DialogService.Show<InvoiceDialog>("Edit Invoice", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+            Snackbar.Add("Invoice updated successfully", Severity.Success);
+        }
+    }
+
+    private void ViewInvoice(Invoice invoice)
+    {
+        Navigation.NavigateTo($"/invoices/{invoice.Id}");
+    }
+}

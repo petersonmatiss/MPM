@@ -1,0 +1,274 @@
+@inject IInvoiceService InvoiceService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 600px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Invoice Number" @bind-Value="invoice.Number" 
+                                     Required="true" RequiredError="Invoice number is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Supplier" @bind-Value="invoice.SupplierId" Required="true"
+                                  RequiredError="Supplier is required">
+                            @foreach (var supplier in suppliers)
+                            {
+                                <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Invoice Date" @bind-Date="invoiceDate" Required="true"
+                                      RequiredError="Invoice date is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Due Date" @bind-Date="dueDate" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Currency" @bind-Value="invoice.Currency" Required="true">
+                            @foreach (var currency in Constants.Currency.ValidCurrencies)
+                            {
+                                <MudSelectItem Value="@currency">@currency</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Tax Amount" @bind-Value="invoice.TaxAmount" 
+                                        Format="C2" Min="0m" T="decimal" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Notes" @bind-Value="invoice.Notes" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSwitch @bind-Value="invoice.IsReceived" Label="Received" T="bool" />
+                    </MudItem>
+                    @if (invoice.IsReceived)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker Label="Received Date" @bind-Date="receivedDate" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Received By" @bind-Value="invoice.ReceivedBy" />
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+                
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Variant="Variant.H6">Invoice Lines</MudText>
+                    <MudButton Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" 
+                              OnClick="AddLine" Size="Size.Small">Add Line</MudButton>
+                </div>
+
+                @if (invoice.Lines?.Any() == true)
+                {
+                    <MudTable Items="invoice.Lines" Dense="true" Hover="true">
+                        <HeaderContent>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Quantity</MudTh>
+                            <MudTh>Unit Price</MudTh>
+                            <MudTh>Total</MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Description">
+                                <MudTextField @bind-Value="context.Description" Required="true" 
+                                             Placeholder="Enter description..." Variant="Variant.Outlined" />
+                            </MudTd>
+                            <MudTd DataLabel="Type">
+                                <MudSelect @bind-Value="context.ItemType" Variant="Variant.Outlined">
+                                    <MudSelectItem Value="@string.Empty">--Select--</MudSelectItem>
+                                    <MudSelectItem Value="@("Sheet")">Sheet</MudSelectItem>
+                                    <MudSelectItem Value="@("Profile")">Profile</MudSelectItem>
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd DataLabel="Quantity">
+                                <MudNumericField @bind-Value="context.Quantity" Min="0.0001m" 
+                                               Variant="Variant.Outlined" T="decimal" />
+                            </MudTd>
+                            <MudTd DataLabel="Unit Price">
+                                <MudNumericField @bind-Value="context.UnitPrice" Min="0m" Format="C2"
+                                               Variant="Variant.Outlined" T="decimal" />
+                            </MudTd>
+                            <MudTd DataLabel="Total">
+                                @((context.Quantity * context.UnitPrice).ToString("C2"))
+                            </MudTd>
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" 
+                                              Size="Size.Small" OnClick="@(() => RemoveLine(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="d-flex justify-end">
+                            <MudCard Style="min-width: 300px;">
+                                <MudCardContent>
+                                    <div class="d-flex justify-space-between">
+                                        <MudText>Subtotal:</MudText>
+                                        <MudText>@CalculateSubTotal().ToString("C2")</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between">
+                                        <MudText>Tax:</MudText>
+                                        <MudText>@invoice.TaxAmount.ToString("C2")</MudText>
+                                    </div>
+                                    <MudDivider />
+                                    <div class="d-flex justify-space-between">
+                                        <MudText Variant="Variant.H6">Total:</MudText>
+                                        <MudText Variant="Variant.H6">@CalculateTotal().ToString("C2")</MudText>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                }
+                else
+                {
+                    <MudText Color="Color.Secondary" Class="text-center">No lines added yet. Click "Add Line" to get started.</MudText>
+                }
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid)">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Invoice? Invoice { get; set; }
+    [Parameter] public List<Supplier> Suppliers { get; set; } = new();
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private Invoice invoice = new();
+    private List<Supplier> suppliers = new();
+    
+    private DateTime? invoiceDate;
+    private DateTime? dueDate;
+    private DateTime? receivedDate;
+
+    private bool IsEdit => Invoice is not null;
+
+    protected override void OnInitialized()
+    {
+        suppliers = Suppliers ?? new List<Supplier>();
+        
+        if (IsEdit && Invoice is not null)
+        {
+            invoice = new Invoice
+            {
+                Id = Invoice.Id,
+                Number = Invoice.Number,
+                SupplierId = Invoice.SupplierId,
+                InvoiceDate = Invoice.InvoiceDate,
+                DueDate = Invoice.DueDate,
+                Currency = Invoice.Currency,
+                SubTotal = Invoice.SubTotal,
+                TaxAmount = Invoice.TaxAmount,
+                TotalAmount = Invoice.TotalAmount,
+                Notes = Invoice.Notes,
+                IsReceived = Invoice.IsReceived,
+                ReceivedDate = Invoice.ReceivedDate,
+                ReceivedBy = Invoice.ReceivedBy,
+                Lines = Invoice.Lines?.Select(l => new InvoiceLine
+                {
+                    Id = l.Id,
+                    InvoiceId = l.InvoiceId,
+                    Description = l.Description,
+                    ItemType = l.ItemType,
+                    Quantity = l.Quantity,
+                    UnitOfMeasure = l.UnitOfMeasure,
+                    UnitPrice = l.UnitPrice,
+                    TotalPrice = l.TotalPrice,
+                    TaxCode = l.TaxCode,
+                    Grade = l.Grade,
+                    Dimension = l.Dimension,
+                    LengthMm = l.LengthMm,
+                    WidthMm = l.WidthMm,
+                    ThicknessMm = l.ThicknessMm,
+                    ProfileType = l.ProfileType,
+                    HeatNumber = l.HeatNumber
+                }).ToList() ?? new List<InvoiceLine>()
+            };
+            
+            invoiceDate = Invoice.InvoiceDate;
+            dueDate = Invoice.DueDate;
+            receivedDate = Invoice.ReceivedDate;
+        }
+        else
+        {
+            invoice.Currency = Constants.Currency.EUR;
+            invoice.InvoiceDate = DateTime.UtcNow;
+            invoice.Lines = new List<InvoiceLine>();
+            invoiceDate = DateTime.UtcNow;
+        }
+    }
+
+    private void AddLine()
+    {
+        invoice.Lines ??= new List<InvoiceLine>();
+        invoice.Lines.Add(new InvoiceLine
+        {
+            UnitOfMeasure = Constants.UnitOfMeasure.Kilogram,
+            Quantity = 1,
+            UnitPrice = 0
+        });
+    }
+
+    private void RemoveLine(InvoiceLine line)
+    {
+        invoice.Lines?.Remove(line);
+    }
+
+    private decimal CalculateSubTotal()
+    {
+        return invoice.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0;
+    }
+
+    private decimal CalculateTotal()
+    {
+        return CalculateSubTotal() + invoice.TaxAmount;
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                // Set calculated values
+                invoice.InvoiceDate = invoiceDate ?? DateTime.UtcNow;
+                invoice.DueDate = dueDate;
+                invoice.ReceivedDate = receivedDate;
+                invoice.SubTotal = CalculateSubTotal();
+                invoice.TotalAmount = CalculateTotal();
+
+                if (IsEdit)
+                {
+                    await InvoiceService.UpdateAsync(invoice);
+                }
+                else
+                {
+                    await InvoiceService.CreateAsync(invoice);
+                }
+                MudDialog.Close(DialogResult.Ok(invoice));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving invoice: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
