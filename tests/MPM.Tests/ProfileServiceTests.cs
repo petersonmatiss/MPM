@@ -7,10 +7,11 @@ namespace MPM.Tests;
 
 public class ProfileServiceTests
 {
+    private static readonly string InMemoryDbName = "ProfileServiceTestsDb";
     private MpmDbContext GetInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<MpmDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName: InMemoryDbName)
             .Options;
 
         var context = new MpmDbContext(options);
