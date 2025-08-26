@@ -1,0 +1,249 @@
+@page "/profiles"
+@inject IProfileService ProfileService
+@inject ISteelGradeService SteelGradeService
+@inject IProfileTypeService ProfileTypeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Profiles Inventory - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Profiles Inventory</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex gap-4">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by LotId, dimension, or heat number..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                <MudSelect @bind-Value="selectedProfileTypeId" Placeholder="Filter by profile type" Clearable="true" Class="mt-0">
+                    @foreach (var type in profileTypes)
+                    {
+                        <MudSelectItem Value="type.Id">@type.Code - @type.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect @bind-Value="selectedSteelGradeId" Placeholder="Filter by steel grade" Clearable="true" Class="mt-0">
+                    @foreach (var grade in steelGrades)
+                    {
+                        <MudSelectItem Value="grade.Id">@grade.Code - @grade.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.FilterList" 
+                          OnClick="ApplyFilters">Apply Filters</MudButton>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+                New Profile
+            </MudButton>
+        </div>
+
+        <MudTabs @bind-ActiveTab="activeTab" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" 
+                 PanelClass="pa-6">
+            <MudTabPanel Text="All Profiles" Icon="Icons.Material.Filled.ViewList">
+                <MudDataGrid Items="@filteredProfiles" Filterable="true" SortMode="SortMode.Multiple" 
+                             Loading="@loading" RowsPerPage="10">
+                    <Columns>
+                        <PropertyColumn Property="x => x.LotId" Title="Lot ID" />
+                        <PropertyColumn Property="x => x.ProfileType!.Code" Title="Type" />
+                        <PropertyColumn Property="x => x.SteelGrade!.Code" Title="Grade" />
+                        <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
+                        <PropertyColumn Property="x => x.LengthMm" Title="Length (mm)" />
+                        <PropertyColumn Property="x => x.AvailableLengthMm" Title="Available (mm)" />
+                        <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
+                        <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="C2" />
+                        <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                        <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
+                        <PropertyColumn Property="x => x.IsReserved" Title="Status">
+                            <CellTemplate>
+                                <MudChip Color="@(context.Item!.IsReserved ? Color.Info : Color.Success)" 
+                                        Size="Size.Small">
+                                    @(context.Item.IsReserved ? "Reserved" : "Available")
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn CellClass="d-flex justify-end">
+                            <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                              OnClick="@(() => OpenEditDialog(context.Item))" />
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Delete" 
+                                              Color="Color.Error" 
+                                              OnClick="@(() => DeleteProfile(context.Item))"
+                                              Disabled="@context.Item!.IsReserved" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Available" Icon="Icons.Material.Filled.CheckCircle">
+                <MudDataGrid Items="@filteredAvailableProfiles" Filterable="true" SortMode="SortMode.Multiple" 
+                             Loading="@loadingAvailable" RowsPerPage="10">
+                    <Columns>
+                        <PropertyColumn Property="x => x.LotId" Title="Lot ID" />
+                        <PropertyColumn Property="x => x.ProfileType!.Code" Title="Type" />
+                        <PropertyColumn Property="x => x.SteelGrade!.Code" Title="Grade" />
+                        <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
+                        <PropertyColumn Property="x => x.AvailableLengthMm" Title="Available (mm)" />
+                        <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
+                        <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                        <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
+                        <TemplateColumn CellClass="d-flex justify-end">
+                            <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                              OnClick="@(() => OpenEditDialog(context.Item))" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </MudTabPanel>
+        </MudTabs>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<Profile> profiles = new();
+    private List<Profile> availableProfiles = new();
+    private List<Profile> filteredProfiles = new();
+    private List<Profile> filteredAvailableProfiles = new();
+    private List<SteelGrade> steelGrades = new();
+    private List<ProfileType> profileTypes = new();
+    
+    private string searchString = string.Empty;
+    private int? selectedProfileTypeId;
+    private int? selectedSteelGradeId;
+    private bool loading = false;
+    private bool loadingAvailable = false;
+    private int activeTab = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupData();
+        await LoadProfiles();
+        await LoadAvailableProfiles();
+    }
+
+    private async Task LoadLookupData()
+    {
+        steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+        profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
+    }
+
+    private async Task LoadProfiles()
+    {
+        loading = true;
+        try
+        {
+            profiles = (await ProfileService.GetAllAsync(selectedProfileTypeId, selectedSteelGradeId, searchString)).ToList();
+            ApplyFiltersToProfiles();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadAvailableProfiles()
+    {
+        loadingAvailable = true;
+        try
+        {
+            availableProfiles = (await ProfileService.GetAvailableProfilesAsync(selectedProfileTypeId, selectedSteelGradeId)).ToList();
+            ApplyFiltersToAvailableProfiles();
+        }
+        finally
+        {
+            loadingAvailable = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadProfiles();
+        await LoadAvailableProfiles();
+    }
+
+    private void ApplyFiltersToProfiles()
+    {
+        filteredProfiles = FilterProfiles(profiles);
+    }
+
+    private void ApplyFiltersToAvailableProfiles()
+    {
+        filteredAvailableProfiles = FilterProfiles(availableProfiles);
+    }
+
+    private List<Profile> FilterProfiles(List<Profile> sourceProfiles)
+    {
+        return sourceProfiles.Where(p =>
+        {
+            bool matchesSearch = string.IsNullOrEmpty(searchString) ||
+                               p.LotId.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               p.Dimension.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               p.HeatNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               (p.SteelGrade?.Code.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                               (p.ProfileType?.Code.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+
+            return matchesSearch;
+        }).ToList();
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<ProfileDialog>
+        {
+            { x => x.Profile, null }
+        };
+
+        var dialog = await DialogService.ShowAsync<ProfileDialog>("Create Profile", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProfiles();
+            await LoadAvailableProfiles();
+            Snackbar.Add("Profile created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Profile profile)
+    {
+        var parameters = new DialogParameters<ProfileDialog>
+        {
+            { x => x.Profile, profile }
+        };
+
+        var dialog = await DialogService.ShowAsync<ProfileDialog>("Edit Profile", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProfiles();
+            await LoadAvailableProfiles();
+            Snackbar.Add("Profile updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task DeleteProfile(Profile profile)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Delete Profile",
+            $"Are you sure you want to delete profile {profile.LotId}?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await ProfileService.DeleteAsync(profile.Id);
+                await LoadProfiles();
+                await LoadAvailableProfiles();
+                Snackbar.Add("Profile deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting profile: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

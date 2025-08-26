@@ -1,0 +1,173 @@
+@inject IProfileService ProfileService
+@inject ISteelGradeService SteelGradeService
+@inject IProfileTypeService ProfileTypeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Lot ID" @bind-Value="profile.LotId" 
+                                     Required="true" RequiredError="Lot ID is required"
+                                     HelperText="Format: One uppercase letter + numbers (e.g., A15)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Dimension" @bind-Value="profile.Dimension" 
+                                     Required="true" RequiredError="Dimension is required"
+                                     HelperText="Profile dimensions (e.g., 200x200x15)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Steel Grade" @bind-Value="profile.SteelGradeId" 
+                                  T="int?" Required="false"
+                                  HelperText="Select steel grade">
+                            <MudSelectItem Value="@((int?)null)">-- Select Grade --</MudSelectItem>
+                            @foreach (var grade in steelGrades)
+                            {
+                                <MudSelectItem Value="@grade.Id">@grade.Code - @grade.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Profile Type" @bind-Value="profile.ProfileTypeId" 
+                                  T="int?" Required="false"
+                                  HelperText="Select profile type">
+                            <MudSelectItem Value="@((int?)null)">-- Select Type --</MudSelectItem>
+                            @foreach (var type in profileTypes)
+                            {
+                                <MudSelectItem Value="@type.Id">@type.Code - @type.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Length (mm)" @bind-Value="profile.LengthMm" 
+                                        Required="true" RequiredError="Length is required"
+                                        Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Weight (kg)" @bind-Value="profile.Weight" 
+                                        Required="true" RequiredError="Weight is required"
+                                        Min="0" Step="0.01M" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Unit Price" @bind-Value="profile.UnitPrice" 
+                                        Min="0" Step="0.01M"
+                                        HelperText="Price per unit" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Heat Number" @bind-Value="profile.HeatNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Supplier Name" @bind-Value="profile.SupplierName" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Invoice Number" @bind-Value="profile.InvoiceNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Arrival Date" @bind-Date="arrivalDate" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <!-- Spacer for layout -->
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudCheckBox @bind-Value="profile.IsReserved" Label="Reserved" />
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="!isFormValid">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Profile? Profile { get; set; }
+
+    private MudForm form = default!;
+    private bool isFormValid;
+    private string[] errors = { };
+    private Profile profile = new();
+    private DateTime? arrivalDate;
+    private List<SteelGrade> steelGrades = new();
+    private List<ProfileType> profileTypes = new();
+
+    public bool IsEdit => Profile is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load lookup data
+        steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+        profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
+
+        if (IsEdit && Profile is not null)
+        {
+            profile = new Profile
+            {
+                Id = Profile.Id,
+                LotId = Profile.LotId,
+                SteelGradeId = Profile.SteelGradeId,
+                ProfileTypeId = Profile.ProfileTypeId,
+                Dimension = Profile.Dimension,
+                LengthMm = Profile.LengthMm,
+                AvailableLengthMm = Profile.AvailableLengthMm,
+                Weight = Profile.Weight,
+                UnitPrice = Profile.UnitPrice,
+                HeatNumber = Profile.HeatNumber,
+                SupplierName = Profile.SupplierName,
+                InvoiceNumber = Profile.InvoiceNumber,
+                ArrivalDate = Profile.ArrivalDate,
+                IsReserved = Profile.IsReserved,
+                InvoiceLineId = Profile.InvoiceLineId,
+                ProjectId = Profile.ProjectId,
+                CertificateId = Profile.CertificateId
+            };
+            arrivalDate = Profile.ArrivalDate;
+        }
+        else
+        {
+            arrivalDate = DateTime.Today;
+            profile.ArrivalDate = DateTime.UtcNow;
+            profile.IsReserved = false;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                // Update arrival date from the date picker
+                if (arrivalDate.HasValue)
+                {
+                    profile.ArrivalDate = arrivalDate.Value.ToUniversalTime();
+                }
+
+                if (IsEdit)
+                {
+                    await ProfileService.UpdateAsync(profile);
+                }
+                else
+                {
+                    await ProfileService.CreateAsync(profile);
+                }
+                MudDialog.Close(DialogResult.Ok(profile));
+            }
+            catch (Exception ex)
+            {
+                // Handle error - show a snackbar with the error message
+                Snackbar.Add($"Error saving profile: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
