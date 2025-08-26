@@ -28,7 +28,7 @@ public class InvoiceService : IInvoiceService
     {
         var query = _context.Invoices
             .Include(i => i.Supplier)
-            .Include(i => i.Lines)
+            // .Include(i => i.Lines) // Removed for performance in list view
             .AsQueryable();
 
         if (supplierId.HasValue)
