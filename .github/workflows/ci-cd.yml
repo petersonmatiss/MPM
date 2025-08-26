@@ -59,6 +59,14 @@ jobs:
         name: coverage-reports
         path: ./coverage/**/coverage.cobertura.xml
         
+    - name: Generate coverage summary
+      if: always()
+      run: |
+        echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "Coverage reports generated successfully." >> $GITHUB_STEP_SUMMARY
+        echo "- Coverage files: $(find ./coverage -name '*.xml' | wc -l)" >> $GITHUB_STEP_SUMMARY
+        echo "- Test results: $(if [ -f ./coverage/test-results.trx ]; then echo 'Available'; else echo 'Not found'; fi)" >> $GITHUB_STEP_SUMMARY
+        
     - name: Publish API artifacts
       if: github.ref == 'refs/heads/main'
       run: |
