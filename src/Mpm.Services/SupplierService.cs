@@ -77,8 +77,8 @@ public class SupplierService : ISupplierService
     public async Task<bool> IsDuplicateAsync(string name, string vatNumber, int? excludeId = null)
     {
         var query = _context.Suppliers
-            .Where(s => s.Name.ToLower() == name.ToLower() && 
-                       s.VatNumber.ToLower() == vatNumber.ToLower() &&
+            .Where(s => EF.Functions.Like(s.Name, name) &&
+                       EF.Functions.Like(s.VatNumber, vatNumber) &&
                        s.IsActive);
 
         if (excludeId.HasValue)
