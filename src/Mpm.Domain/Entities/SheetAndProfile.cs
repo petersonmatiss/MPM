@@ -31,8 +31,8 @@ public class Profile : TenantEntity
     public string LotId { get; set; } = string.Empty; // Format: One uppercase letter + sequential number (A15)
     public int? InvoiceLineId { get; set; }
     public int? ProjectId { get; set; }
-    public string Grade { get; set; } = string.Empty;
-    public string ProfileType { get; set; } = string.Empty;
+    public int? SteelGradeId { get; set; }
+    public int? ProfileTypeId { get; set; }
     public string Dimension { get; set; } = string.Empty;
     public int LengthMm { get; set; }
     public decimal Weight { get; set; }
@@ -49,6 +49,8 @@ public class Profile : TenantEntity
     public virtual InvoiceLine? InvoiceLine { get; set; }
     public virtual Project? Project { get; set; }
     public virtual Certificate? Certificate { get; set; }
+    public virtual SteelGrade? SteelGrade { get; set; }
+    public virtual ProfileType? ProfileType { get; set; }
     public virtual ICollection<ProfileUsage> Usages { get; set; } = new List<ProfileUsage>();
     public virtual ICollection<ProfileRemnant> Remnants { get; set; } = new List<ProfileRemnant>();
 }

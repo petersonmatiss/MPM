@@ -167,6 +167,164 @@ if (app.Environment.IsDevelopment())
             context.SheetUsages.Add(sheetUsage);
             context.SaveChanges();
         }
+        
+        // Add profile types and steel grades
+        if (!context.ProfileTypes.Any())
+        {
+            var profileTypes = new List<ProfileType>
+            {
+                new ProfileType
+                {
+                    Code = "HEB",
+                    Name = "HEB Beam",
+                    Category = "Beam",
+                    Description = "European H-beam profile",
+                    StandardWeight = 106.0m, // kg/m for HEB 200
+                    DimensionFormat = "HxWxT",
+                    IsActive = true
+                },
+                new ProfileType
+                {
+                    Code = "IPE",
+                    Name = "IPE Beam",
+                    Category = "Beam",
+                    Description = "European I-beam profile",
+                    StandardWeight = 30.7m, // kg/m for IPE 200
+                    DimensionFormat = "HxWxT",
+                    IsActive = true
+                },
+                new ProfileType
+                {
+                    Code = "UPN",
+                    Name = "UPN Channel",
+                    Category = "Channel",
+                    Description = "European channel profile",
+                    StandardWeight = 25.3m, // kg/m for UPN 200
+                    DimensionFormat = "HxWxT",
+                    IsActive = true
+                },
+                new ProfileType
+                {
+                    Code = "L",
+                    Name = "Equal Angle",
+                    Category = "Angle",
+                    Description = "Equal angle profile",
+                    StandardWeight = 9.4m, // kg/m for L 100x100x10
+                    DimensionFormat = "LxLxT",
+                    IsActive = true
+                }
+            };
+            
+            context.ProfileTypes.AddRange(profileTypes);
+            context.SaveChanges();
+        }
+        
+        if (!context.SteelGrades.Any())
+        {
+            var steelGrades = new List<SteelGrade>
+            {
+                new SteelGrade
+                {
+                    Code = "S235",
+                    Name = "S235JR",
+                    Standard = "EN 10025",
+                    Description = "Non-alloy structural steel",
+                    DensityKgPerM3 = 7850,
+                    YieldStrengthMPa = 235,
+                    TensileStrengthMPa = 360,
+                    IsActive = true
+                },
+                new SteelGrade
+                {
+                    Code = "S355",
+                    Name = "S355JR",
+                    Standard = "EN 10025",
+                    Description = "Non-alloy structural steel",
+                    DensityKgPerM3 = 7850,
+                    YieldStrengthMPa = 355,
+                    TensileStrengthMPa = 510,
+                    IsActive = true
+                },
+                new SteelGrade
+                {
+                    Code = "S275",
+                    Name = "S275JR",
+                    Standard = "EN 10025",
+                    Description = "Non-alloy structural steel",
+                    DensityKgPerM3 = 7850,
+                    YieldStrengthMPa = 275,
+                    TensileStrengthMPa = 430,
+                    IsActive = true
+                }
+            };
+            
+            context.SteelGrades.AddRange(steelGrades);
+            context.SaveChanges();
+        }
+        
+        // Add some test profiles
+        if (!context.Profiles.Any())
+        {
+            var hebType = context.ProfileTypes.First(pt => pt.Code == "HEB");
+            var ipeType = context.ProfileTypes.First(pt => pt.Code == "IPE");
+            var s355Grade = context.SteelGrades.First(sg => sg.Code == "S355");
+            var s235Grade = context.SteelGrades.First(sg => sg.Code == "S235");
+            
+            var profiles = new List<Profile>
+            {
+                new Profile
+                {
+                    LotId = "A15",
+                    SteelGradeId = s355Grade.Id,
+                    ProfileTypeId = hebType.Id,
+                    Dimension = "200x200x15",
+                    LengthMm = 12000,
+                    AvailableLengthMm = 12000,
+                    Weight = 1272.0m, // 106 kg/m * 12m
+                    HeatNumber = "H987654",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 50.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-8),
+                    IsReserved = false
+                },
+                new Profile
+                {
+                    LotId = "B3",
+                    SteelGradeId = s235Grade.Id,
+                    ProfileTypeId = ipeType.Id,
+                    Dimension = "200x100x8.5",
+                    LengthMm = 10000,
+                    AvailableLengthMm = 6000, // 4m has been used
+                    Weight = 307.0m, // 30.7 kg/m * 10m
+                    HeatNumber = "H456789",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 45.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-12),
+                    IsReserved = true
+                },
+                new Profile
+                {
+                    LotId = "C1",
+                    SteelGradeId = s355Grade.Id,
+                    ProfileTypeId = hebType.Id,
+                    Dimension = "200x200x15",
+                    LengthMm = 8000,
+                    AvailableLengthMm = 8000,
+                    Weight = 848.0m, // 106 kg/m * 8m
+                    HeatNumber = "H123789",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 52.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-6),
+                    IsReserved = false
+                }
+            };
+            
+            context.Profiles.AddRange(profiles);
+            context.SaveChanges();
+        }
     }
 }
 
@@ -389,6 +547,112 @@ app.MapDelete("/api/sheets/{id}", async (int id, ISheetService sheetService) =>
     }
 })
 .WithName("DeleteSheet")
+.WithOpenApi();
+
+// Profiles API endpoints
+app.MapGet("/api/profiles", async (IProfileService profileService, int? profileTypeId, int? steelGradeId, string? searchFilter) =>
+{
+    var profiles = await profileService.GetAllAsync(profileTypeId, steelGradeId, searchFilter);
+    return Results.Ok(profiles);
+})
+.WithName("GetProfiles")
+.WithOpenApi();
+
+app.MapGet("/api/profiles/available", async (IProfileService profileService, int? profileTypeId, int? steelGradeId) =>
+{
+    var availableProfiles = await profileService.GetAvailableProfilesAsync(profileTypeId, steelGradeId);
+    return Results.Ok(availableProfiles);
+})
+.WithName("GetAvailableProfiles")
+.WithOpenApi();
+
+app.MapGet("/api/profiles/{id}", async (int id, IProfileService profileService) =>
+{
+    var profile = await profileService.GetByIdAsync(id);
+    return profile is not null ? Results.Ok(profile) : Results.NotFound();
+})
+.WithName("GetProfile")
+.WithOpenApi();
+
+app.MapGet("/api/profiles/lot/{lotId}", async (string lotId, IProfileService profileService) =>
+{
+    var profile = await profileService.GetByLotIdAsync(lotId);
+    return profile is not null ? Results.Ok(profile) : Results.NotFound();
+})
+.WithName("GetProfileByLotId")
+.WithOpenApi();
+
+app.MapGet("/api/profiles/{id}/remnants", async (int id, IProfileService profileService) =>
+{
+    var remnants = await profileService.GetRemnantsAsync(id);
+    return Results.Ok(remnants);
+})
+.WithName("GetProfileRemnants")
+.WithOpenApi();
+
+app.MapPost("/api/profiles", async (Profile profile, IProfileService profileService) =>
+{
+    try
+    {
+        var created = await profileService.CreateAsync(profile);
+        return Results.Created($"/api/profiles/{created.Id}", created);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateProfile")
+.WithOpenApi();
+
+app.MapPut("/api/profiles/{id}", async (int id, Profile profile, IProfileService profileService) =>
+{
+    if (id != profile.Id)
+        return Results.BadRequest(new { error = "ID mismatch" });
+
+    try
+    {
+        var updated = await profileService.UpdateAsync(profile);
+        return Results.Ok(updated);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UpdateProfile")
+.WithOpenApi();
+
+app.MapDelete("/api/profiles/{id}", async (int id, IProfileService profileService) =>
+{
+    try
+    {
+        await profileService.DeleteAsync(id);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("DeleteProfile")
+.WithOpenApi();
+
+// Lookup APIs for ProfileType and SteelGrade
+app.MapGet("/api/profile-types", async (IProfileTypeService profileTypeService) =>
+{
+    var profileTypes = await profileTypeService.GetAllActiveAsync();
+    return Results.Ok(profileTypes);
+})
+.WithName("GetProfileTypes")
+.WithOpenApi();
+
+app.MapGet("/api/steel-grades", async (ISteelGradeService steelGradeService) =>
+{
+    var steelGrades = await steelGradeService.GetAllActiveAsync();
+    return Results.Ok(steelGrades);
+})
+.WithName("GetSteelGrades")
 .WithOpenApi();
 
 app.Run();

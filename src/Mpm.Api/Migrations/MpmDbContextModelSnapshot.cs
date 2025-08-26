@@ -1630,11 +1630,6 @@ namespace Mpm.Api.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<string>("ProfileType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<int?>("ProfileTypeId")
                         .HasColumnType("int");
 
@@ -1688,7 +1683,7 @@ namespace Mpm.Api.Migrations
                     b.HasIndex("TenantId", "LotId")
                         .IsUnique();
 
-                    b.HasIndex("TenantId", "ProjectId", "ProfileType");
+                    b.HasIndex("TenantId", "ProjectId", "ProfileTypeId");
 
                     b.ToTable("Profiles");
                 });
