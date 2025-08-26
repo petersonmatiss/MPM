@@ -1,0 +1,394 @@
+@startuml MPM Entity Relationship Diagram
+!theme plain
+skinparam linetype ortho
+skinparam ranksep 80
+skinparam nodesep 50
+
+' Base Entities
+abstract class BaseEntity {
+  + Id : int [PK] [Index]
+  + CreatedAt : DateTime [Index]
+  + UpdatedAt : DateTime [Index]  
+  + CreatedBy : string
+  + UpdatedBy : string
+}
+
+abstract class TenantEntity {
+  + TenantId : string [Index]
+}
+
+BaseEntity ||--|| TenantEntity : extends
+
+' Customer Management
+entity Customer {
+  + Id : int [PK] [Index]
+  + Name : string
+  + VatNumber : string
+  + RegistrationNumber : string
+  + Address : string
+  + PaymentTerms : string
+  + Currency : string
+  + Status : CustomerStatus
+}
+
+entity CustomerContact {
+  + Id : int [PK] [Index]
+  + CustomerId : int [FK] [Index]
+  + Name : string
+  + Email : string
+  + Phone : string
+  + Role : string
+  + Notes : string
+}
+
+TenantEntity ||--|| Customer : extends
+TenantEntity ||--|| CustomerContact : extends
+Customer ||--o{ CustomerContact : "has contacts"
+
+' Project Management
+entity Project {
+  + Id : int [PK] [Index]
+  + Code : string
+  + Name : string
+  + CustomerId : int [FK] [Index]
+  + ExcLevel : ExcLevel
+  + En1090Applicable : bool
+  + DesignDueDate : DateTime?
+  + FabricationDueDate : DateTime?
+  + DeliveryDueDate : DateTime?
+  + Status : ProjectStatus
+  + SiteAddress : string
+  + CoatingType : CoatingType
+  + CoatingNotes : string
+  + Notes : string
+}
+
+entity BillOfMaterial {
+  + Id : int [PK] [Index]
+  + ProjectId : int [FK] [Index]
+  + Version : string
+  + Description : string
+  + Data : byte[]
+  + FileName : string
+  + MimeType : string
+  + IsActive : bool
+}
+
+entity BomItem {
+  + Id : int [PK] [Index]
+  + BillOfMaterialId : int [FK] [Index]
+  + MaterialId : int [FK] [Index]
+  + Quantity : decimal
+  + UnitOfMeasure : string
+  + Weight : decimal
+  + Length : decimal?
+  + Notes : string
+}
+
+TenantEntity ||--|| Project : extends
+TenantEntity ||--|| BillOfMaterial : extends
+TenantEntity ||--|| BomItem : extends
+
+Customer ||--o{ Project : "has projects"
+Project ||--o{ BillOfMaterial : "has BOMs"
+BillOfMaterial ||--o{ BomItem : "contains items"
+
+' Material and Supplier Management
+entity Material {
+  + Id : int [PK] [Index]
+  + Grade : string
+  + Dimension : string
+  + ProfileType : string
+  + UnitWeight : decimal
+  + Surface : string
+  + SupplierPartNumber : string
+  + Standard : string
+  + Description : string
+}
+
+entity Supplier {
+  + Id : int [PK] [Index]
+  + Name : string
+  + VatNumber : string
+  + RegistrationNumber : string
+  + Address : string
+  + PaymentTerms : string
+  + Currency : string
+  + Email : string
+  + Phone : string
+  + IsActive : bool
+}
+
+entity PurchaseOrder {
+  + Id : int [PK] [Index]
+  + Number : string
+  + SupplierId : int [FK] [Index]
+  + ProjectId : int? [FK] [Index]
+  + OrderDate : DateTime [Index]
+  + DeliveryDate : DateTime?
+  + Incoterms : string
+  + Currency : string
+  + Notes : string
+  + IsConfirmed : bool
+}
+
+entity PurchaseOrderLine {
+  + Id : int [PK] [Index]
+  + PurchaseOrderId : int [FK] [Index]
+  + MaterialId : int [FK] [Index]
+  + Quantity : decimal
+  + UnitOfMeasure : string
+  + UnitPrice : decimal
+  + DiscountPercent : decimal
+  + TaxCode : string
+  + ProfileType : string
+  + Notes : string
+}
+
+TenantEntity ||--|| Material : extends
+TenantEntity ||--|| Supplier : extends
+TenantEntity ||--|| PurchaseOrder : extends
+TenantEntity ||--|| PurchaseOrderLine : extends
+
+Material ||--o{ BomItem : "used in"
+Supplier ||--o{ PurchaseOrder : "supplies"
+Project ||--o{ PurchaseOrder : "may order for"
+PurchaseOrder ||--o{ PurchaseOrderLine : "contains lines"
+Material ||--o{ PurchaseOrderLine : "ordered as"
+
+' Inventory Management
+entity GoodsReceiptNote {
+  + Id : int [PK] [Index]
+  + Number : string
+  + PurchaseOrderId : int [FK] [Index]
+  + ReceiptDate : DateTime [Index]
+  + DeliveryNoteNumber : string
+  + ReceivedBy : string
+  + Comments : string
+}
+
+entity GoodsReceiptNoteLine {
+  + Id : int [PK] [Index]
+  + GoodsReceiptNoteId : int [FK] [Index]
+  + PurchaseOrderLineId : int [FK] [Index]
+  + ReceivedQuantity : decimal
+  + UnitOfMeasure : string
+  + HeatNumber : string
+  + Notes : string
+}
+
+entity InventoryLot {
+  + Id : int [PK] [Index]
+  + MaterialId : int [FK] [Index]
+  + ProjectId : int? [FK] [Index]
+  + GoodsReceiptNoteLineId : int? [FK] [Index]
+  + Quantity : decimal
+  + Length : decimal?
+  + HeatNumber : string
+  + CertificateId : int? [FK] [Index]
+  + ProfileType : string
+  + Location : string
+  + ArrivalDate : DateTime [Index]
+  + SupplierName : string
+  + InvoiceNumber : string [Index]
+  + UnitPrice : decimal
+  + IsReserved : bool
+}
+
+entity MaterialReservation {
+  + Id : int [PK] [Index]
+  + InventoryLotId : int [FK] [Index]
+  + ProjectId : int? [FK] [Index]
+  + WorkOrderId : int? [FK] [Index]
+  + ReservedQuantity : decimal
+  + ReservedLength : decimal?
+  + ReservationDate : DateTime [Index]
+  + ReservedBy : string
+  + Notes : string
+}
+
+entity Certificate {
+  + Id : int [PK] [Index]
+  + CertificateNumber : string
+  + VendorCertificateNumber : string
+  + HeatNumber : string
+  + Grade : string
+  + Standard : string
+  + PdfData : byte[]
+  + FileName : string
+  + IssueDate : DateTime [Index]
+  + ExpiryDate : DateTime [Index]
+}
+
+TenantEntity ||--|| GoodsReceiptNote : extends
+TenantEntity ||--|| GoodsReceiptNoteLine : extends
+TenantEntity ||--|| InventoryLot : extends
+TenantEntity ||--|| MaterialReservation : extends
+TenantEntity ||--|| Certificate : extends
+
+PurchaseOrder ||--o{ GoodsReceiptNote : "receives goods"
+GoodsReceiptNote ||--o{ GoodsReceiptNoteLine : "contains lines"
+PurchaseOrderLine ||--o{ GoodsReceiptNoteLine : "received as"
+GoodsReceiptNoteLine ||--o{ InventoryLot : "creates lots"
+Material ||--o{ InventoryLot : "stored as"
+Project ||--o{ InventoryLot : "may reserve for"
+Certificate ||--o{ InventoryLot : "certifies"
+InventoryLot ||--o{ MaterialReservation : "reserved as"
+Project ||--o{ MaterialReservation : "reserves for"
+
+' Work Order Management
+entity WorkOrder {
+  + Id : int [PK] [Index]
+  + Number : string
+  + ProjectId : int [FK] [Index]
+  + OperationType : OperationType
+  + DueDate : DateTime? [Index]
+  + Priority : int
+  + Status : WorkOrderStatus
+  + Description : string
+  + Instructions : string
+  + EstimatedHours : decimal
+  + ActualHours : decimal
+}
+
+entity WorkOrderOperation {
+  + Id : int [PK] [Index]
+  + WorkOrderId : int [FK] [Index]
+  + OperatorBadgeId : string
+  + StartTime : DateTime? [Index]
+  + EndTime : DateTime? [Index]
+  + Notes : string
+  + QuantityCompleted : int?
+  + ActualHours : decimal?
+}
+
+TenantEntity ||--|| WorkOrder : extends
+TenantEntity ||--|| WorkOrderOperation : extends
+
+Project ||--o{ WorkOrder : "has work orders"
+WorkOrder ||--o{ WorkOrderOperation : "tracked with"
+WorkOrder ||--o{ MaterialReservation : "reserves materials"
+
+' Quality Management
+entity NonConformanceReport {
+  + Id : int [PK] [Index]
+  + Number : string
+  + ProjectId : int [FK] [Index]
+  + WorkOrderId : int? [FK] [Index]
+  + DefectType : DefectType
+  + Location : string
+  + Description : string
+  + Disposition : NCRDisposition
+  + Status : NCRStatus
+  + RootCause : string
+  + CorrectiveAction : string
+  + PreventiveAction : string
+  + DiscoveryDate : DateTime [Index]
+  + DiscoveredBy : string
+  + ClosureDate : DateTime?
+  + ClosedBy : string
+  + QAApprovalBy : string
+  + QAApprovalDate : DateTime?
+  + PMApprovalBy : string
+  + PMApprovalDate : DateTime?
+}
+
+entity NCRPhoto {
+  + Id : int [PK] [Index]
+  + NonConformanceReportId : int [FK] [Index]
+  + FileName : string
+  + ImageData : byte[]
+  + Caption : string
+}
+
+entity DeclarationOfPerformance {
+  + Id : int [PK] [Index]
+  + Number : string
+  + ProjectId : int [FK] [Index]
+  + IntendedUse : string
+  + EssentialCharacteristics : string
+  + DeclaredPerformance : string
+  + AVCPSystem : string
+  + NotifiedBodyId : string
+  + IssueDate : DateTime [Index]
+  + IssuedBy : string
+  + PdfData : byte[]
+  + FileName : string
+  + HashChain : string
+  + QRCode : string
+  + QASignedBy : string
+  + QASignedDate : DateTime?
+  + PMSignedBy : string
+  + PMSignedDate : DateTime?
+}
+
+entity DoPMaterial {
+  + Id : int [PK] [Index]
+  + DeclarationOfPerformanceId : int [FK] [Index]
+  + MaterialId : int [FK] [Index]
+  + Quantity : decimal
+  + UnitOfMeasure : string
+}
+
+entity DoPHeat {
+  + Id : int [PK] [Index]
+  + DeclarationOfPerformanceId : int [FK] [Index]
+  + HeatNumber : string
+  + CertificateId : int? [FK] [Index]
+}
+
+TenantEntity ||--|| NonConformanceReport : extends
+TenantEntity ||--|| NCRPhoto : extends
+TenantEntity ||--|| DeclarationOfPerformance : extends
+TenantEntity ||--|| DoPMaterial : extends
+TenantEntity ||--|| DoPHeat : extends
+
+Project ||--o{ NonConformanceReport : "may have NCRs"
+WorkOrder ||--o{ NonConformanceReport : "may have NCRs"
+NonConformanceReport ||--o{ NCRPhoto : "documented with"
+Project ||--o{ DeclarationOfPerformance : "documented with"
+DeclarationOfPerformance ||--o{ DoPMaterial : "includes materials"
+DeclarationOfPerformance ||--o{ DoPHeat : "includes heats"
+Material ||--o{ DoPMaterial : "documented in"
+Certificate ||--o{ DoPHeat : "certifies heat"
+
+' Quotation Management
+entity Quotation {
+  + Id : int [PK] [Index]
+  + Number : string
+  + CustomerId : int [FK] [Index]
+  + ProjectId : int? [FK] [Index]
+  + Description : string
+  + TotalWeight : decimal
+  + ComplexityFactor : decimal
+  + MaterialCost : decimal
+  + LaborCost : decimal
+  + OverheadCost : decimal
+  + ProfitMargin : decimal
+  + TotalCost : decimal
+  + SellingPrice : decimal
+  + LeadTimeDays : int
+  + ValidUntil : DateTime [Index]
+  + IsAccepted : bool
+  + AcceptedDate : DateTime?
+}
+
+entity QuotationLine {
+  + Id : int [PK] [Index]
+  + QuotationId : int [FK] [Index]
+  + Description : string
+  + Quantity : decimal
+  + UnitOfMeasure : string
+  + UnitCost : decimal
+  + TotalCost : decimal
+  + OperationType : OperationType
+}
+
+TenantEntity ||--|| Quotation : extends
+TenantEntity ||--|| QuotationLine : extends
+
+Customer ||--o{ Quotation : "requests quotes"
+Project ||--o{ Quotation : "may have quotes"
+Quotation ||--o{ QuotationLine : "contains lines"
+
+@enduml

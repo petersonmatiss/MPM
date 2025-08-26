@@ -1,0 +1,13 @@
+# MPM ERD Visio File Placeholder
+
+This is a placeholder for the Visio file. The actual ERD is generated from the PlantUML source file (mpm-erd.puml).
+
+To create a Visio file:
+1. Open Microsoft Visio
+2. Import the mpm-erd.png image as a reference
+3. Use the Database Model Diagram template
+4. Recreate the entities and relationships based on the PlantUML source
+
+The PlantUML source provides all the entity definitions, relationships, and indexing information needed to create the Visio diagram.
+
+Note: PlantUML is the source of truth for the ERD definition.
