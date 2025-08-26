@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         // Add business services
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IMaterialService, MaterialService>();
         services.AddScoped<IWorkOrderService, WorkOrderService>();

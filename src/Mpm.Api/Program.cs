@@ -111,6 +111,64 @@ app.MapDelete("/api/suppliers/{id}", async (int id, ISupplierService supplierSer
 .WithName("DeleteSupplier")
 .WithOpenApi();
 
+// Invoices API endpoints
+app.MapGet("/api/invoices", async (IInvoiceService invoiceService, int? supplierId, DateTime? fromDate, DateTime? toDate) =>
+{
+    var invoices = await invoiceService.GetAllAsync(supplierId, fromDate, toDate);
+    return Results.Ok(invoices);
+})
+.WithName("GetInvoices")
+.WithOpenApi();
+
+app.MapGet("/api/invoices/{id}", async (int id, IInvoiceService invoiceService) =>
+{
+    var invoice = await invoiceService.GetByIdAsync(id);
+    return invoice is not null ? Results.Ok(invoice) : Results.NotFound();
+})
+.WithName("GetInvoice")
+.WithOpenApi();
+
+app.MapPost("/api/invoices", async (Invoice invoice, IInvoiceService invoiceService) =>
+{
+    try
+    {
+        var created = await invoiceService.CreateAsync(invoice);
+        return Results.Created($"/api/invoices/{created.Id}", created);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateInvoice")
+.WithOpenApi();
+
+app.MapPut("/api/invoices/{id}", async (int id, Invoice invoice, IInvoiceService invoiceService) =>
+{
+    if (id != invoice.Id)
+        return Results.BadRequest(new { error = "ID mismatch" });
+
+    try
+    {
+        var updated = await invoiceService.UpdateAsync(invoice);
+        return Results.Ok(updated);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UpdateInvoice")
+.WithOpenApi();
+
+app.MapDelete("/api/invoices/{id}", async (int id, IInvoiceService invoiceService) =>
+{
+    await invoiceService.DeleteAsync(id);
+    return Results.NoContent();
+})
+.WithName("DeleteInvoice")
+.WithOpenApi();
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
