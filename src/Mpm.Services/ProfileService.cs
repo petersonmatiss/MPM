@@ -1,6 +1,8 @@
 using Mpm.Data;
 using Mpm.Domain.Entities;
+using Mpm.Services.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Text.RegularExpressions;
 
 namespace Mpm.Services;
@@ -16,6 +18,7 @@ public interface IProfileService
     Task<bool> CanDeleteAsync(int id);
     Task<IEnumerable<Profile>> GetAvailableProfilesAsync(int? profileTypeId = null, int? steelGradeId = null);
     Task<IEnumerable<ProfileRemnant>> GetRemnantsAsync(int profileId);
+    Task<ProfileUsage> UseProfileAsync(string lotId, ProfileUsageRequest request);
 }
 
 public class ProfileService : IProfileService
@@ -234,5 +237,127 @@ public class ProfileService : IProfileService
             .Where(r => r.ProfileId == profileId)
             .OrderBy(r => r.CreatedDate)
             .ToListAsync();
+    }
+
+    public async Task<ProfileUsage> UseProfileAsync(string lotId, ProfileUsageRequest request)
+    {
+        // Validate input
+        if (string.IsNullOrEmpty(lotId))
+            throw new ArgumentException("LotId is required.", nameof(lotId));
+
+        if (request.UsedLengthMm <= 0)
+            throw new InvalidOperationException("Used length must be greater than 0.");
+
+        if (request.PiecesUsed <= 0)
+            throw new InvalidOperationException("Pieces used must be greater than 0.");
+
+        if (string.IsNullOrEmpty(request.UsedBy))
+            throw new InvalidOperationException("UsedBy is required.");
+
+        // Check if we can use transactions (not in InMemory for tests)
+        var useTransaction = _context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        
+        if (useTransaction)
+        {
+            // Use transaction for real databases
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var result = await ProcessUsageAsync(lotId, request);
+                await transaction.CommitAsync();
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+        else
+        {
+            // Direct processing for in-memory tests
+            return await ProcessUsageAsync(lotId, request);
+        }
+    }
+
+    private async Task<ProfileUsage> ProcessUsageAsync(string lotId, ProfileUsageRequest request)
+    {
+        // Get profile with concurrency check
+        var profile = await _context.Profiles
+            .FirstOrDefaultAsync(p => p.LotId == lotId);
+
+        if (profile == null)
+            throw new InvalidOperationException($"Profile with LotId '{lotId}' not found.");
+
+        // Calculate total length needed
+        var totalLengthNeeded = request.UsedLengthMm * request.PiecesUsed;
+
+        // Check if sufficient material is available
+        if (profile.AvailableLengthMm < totalLengthNeeded)
+        {
+            throw new InvalidOperationException(
+                $"Insufficient material available. Required: {totalLengthNeeded}mm, Available: {profile.AvailableLengthMm}mm");
+        }
+
+        // Update available length atomically
+        profile.AvailableLengthMm -= totalLengthNeeded;
+
+        // Create usage record
+        var usage = new ProfileUsage
+        {
+            ProfileId = profile.Id,
+            ProjectId = request.ProjectId,
+            ManufacturingOrderId = request.ManufacturingOrderId,
+            UsageDate = DateTime.UtcNow,
+            UsedBy = request.UsedBy,
+            UsedLengthMm = request.UsedLengthMm,
+            PiecesUsed = request.PiecesUsed,
+            RemnantFlag = request.RemnantLengthMm.HasValue && request.RemnantLengthMm.Value > 0,
+            RemnantLengthMm = request.RemnantLengthMm,
+            Notes = request.Notes
+        };
+
+        _context.ProfileUsages.Add(usage);
+
+        // Create remnant if specified
+        if (request.RemnantLengthMm.HasValue && request.RemnantLengthMm.Value > 0)
+        {
+            var remnant = new ProfileRemnant
+            {
+                ProfileId = profile.Id,
+                RemnantId = $"{profile.LotId}-{request.RemnantLengthMm.Value}",
+                LengthMm = request.RemnantLengthMm.Value,
+                Weight = CalculateRemnantWeight(profile, request.RemnantLengthMm.Value),
+                IsUsable = true,
+                IsUsed = false,
+                CreatedDate = DateTime.UtcNow,
+                Notes = $"Created from usage: {request.Notes}"
+            };
+
+            _context.ProfileRemnants.Add(remnant);
+        }
+
+        // Save changes
+        await _context.SaveChangesAsync();
+
+        // Return the usage record with navigation properties loaded
+        return await _context.ProfileUsages
+            .Include(u => u.Profile)
+                .ThenInclude(p => p.SteelGrade)
+            .Include(u => u.Profile)
+                .ThenInclude(p => p.ProfileType)
+            .Include(u => u.Project)
+            .Include(u => u.ManufacturingOrder)
+            .FirstAsync(u => u.Id == usage.Id);
+    }
+
+    private decimal CalculateRemnantWeight(Profile profile, int remnantLengthMm)
+    {
+        // Calculate proportional weight based on the remnant length
+        if (profile.LengthMm > 0)
+        {
+            return profile.Weight * remnantLengthMm / profile.LengthMm;
+        }
+        return 0;
     }
 }

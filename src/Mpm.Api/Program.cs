@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mpm.Data;
 using Mpm.Services;
+using Mpm.Services.DTOs;
 using Mpm.Domain.Entities;
 using Mpm.Domain;
 
@@ -588,6 +589,25 @@ app.MapGet("/api/profiles/{id}/remnants", async (int id, IProfileService profile
     return Results.Ok(remnants);
 })
 .WithName("GetProfileRemnants")
+.WithOpenApi();
+
+app.MapPost("/api/profiles/{lotId}/use", async (string lotId, ProfileUsageRequest request, IProfileService profileService) =>
+{
+    try
+    {
+        var usage = await profileService.UseProfileAsync(lotId, request);
+        return Results.Ok(usage);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UseProfile")
 .WithOpenApi();
 
 app.MapPost("/api/profiles", async (Profile profile, IProfileService profileService) =>
