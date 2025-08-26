@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkOrderService, WorkOrderService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IQuotationService, QuotationService>();
+        services.AddScoped<ISheetService, SheetService>();
         
         return services;
     }

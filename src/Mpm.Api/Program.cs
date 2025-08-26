@@ -89,6 +89,84 @@ if (app.Environment.IsDevelopment())
         };
         context.Invoices.Add(invoice);
         context.SaveChanges();
+
+        // Add some test sheets
+        if (!context.Sheets.Any())
+        {
+            var sheets = new List<Sheet>
+            {
+                new Sheet
+                {
+                    SheetId = "S001",
+                    Grade = "S355",
+                    LengthMm = 6000,
+                    WidthMm = 3000,
+                    ThicknessMm = 10,
+                    Weight = 1413.0m,
+                    HeatNumber = "H123456",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 190.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-10),
+                    IsReserved = false,
+                    IsUsed = false
+                },
+                new Sheet
+                {
+                    SheetId = "S002",
+                    Grade = "S235",
+                    LengthMm = 4000,
+                    WidthMm = 2000,
+                    ThicknessMm = 8,
+                    Weight = 502.4m,
+                    HeatNumber = "H789012",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 170.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-5),
+                    IsReserved = true,
+                    IsUsed = false
+                },
+                new Sheet
+                {
+                    SheetId = "S003",
+                    Grade = "S355",
+                    LengthMm = 5000,
+                    WidthMm = 2500,
+                    ThicknessMm = 12,
+                    Weight = 1177.5m,
+                    HeatNumber = "H345678",
+                    SupplierName = "Test Supplier Ltd",
+                    InvoiceNumber = "INV-001",
+                    UnitPrice = 200.00m,
+                    ArrivalDate = DateTime.UtcNow.AddDays(-15),
+                    IsReserved = false,
+                    IsUsed = true
+                }
+            };
+            
+            context.Sheets.AddRange(sheets);
+            context.SaveChanges();
+
+            // Add a sheet usage for the used sheet to create a remnant example
+            var sheetUsage = new SheetUsage
+            {
+                SheetId = sheets[2].Id, // S003
+                ProjectId = null,
+                NestId = "NEST001",
+                UsageDate = DateTime.UtcNow.AddDays(-3),
+                UsedBy = "John Doe",
+                AreaUsed = 8000000, // 8 m² in mm²
+                UsedLengthMm = 4000,
+                UsedWidthMm = 2000,
+                Notes = "Cut for test project",
+                GeneratedRemnants = true,
+                RemnantDetails = "[{\"length\": 1000, \"width\": 2500}, {\"length\": 5000, \"width\": 500}]"
+            };
+            
+            context.SheetUsages.Add(sheetUsage);
+            context.SaveChanges();
+        }
     }
 }
 
@@ -238,6 +316,79 @@ app.MapDelete("/api/invoices/{id}", async (int id, IInvoiceService invoiceServic
     return Results.NoContent();
 })
 .WithName("DeleteInvoice")
+.WithOpenApi();
+
+// Sheets API endpoints
+app.MapGet("/api/sheets", async (ISheetService sheetService, int? thicknessMm, string? sizeFilter) =>
+{
+    var sheets = await sheetService.GetAllAsync(thicknessMm, sizeFilter);
+    return Results.Ok(sheets);
+})
+.WithName("GetSheets")
+.WithOpenApi();
+
+app.MapGet("/api/sheets/remnants", async (ISheetService sheetService, int? thicknessMm, string? sizeFilter) =>
+{
+    var remnantSheets = await sheetService.GetRemnantSheetsAsync(thicknessMm, sizeFilter);
+    return Results.Ok(remnantSheets);
+})
+.WithName("GetRemnantSheets")
+.WithOpenApi();
+
+app.MapGet("/api/sheets/{id}", async (int id, ISheetService sheetService) =>
+{
+    var sheet = await sheetService.GetByIdAsync(id);
+    return sheet is not null ? Results.Ok(sheet) : Results.NotFound();
+})
+.WithName("GetSheet")
+.WithOpenApi();
+
+app.MapPost("/api/sheets", async (Sheet sheet, ISheetService sheetService) =>
+{
+    try
+    {
+        var created = await sheetService.CreateAsync(sheet);
+        return Results.Created($"/api/sheets/{created.Id}", created);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateSheet")
+.WithOpenApi();
+
+app.MapPut("/api/sheets/{id}", async (int id, Sheet sheet, ISheetService sheetService) =>
+{
+    if (id != sheet.Id)
+        return Results.BadRequest(new { error = "ID mismatch" });
+
+    try
+    {
+        var updated = await sheetService.UpdateAsync(sheet);
+        return Results.Ok(updated);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UpdateSheet")
+.WithOpenApi();
+
+app.MapDelete("/api/sheets/{id}", async (int id, ISheetService sheetService) =>
+{
+    try
+    {
+        await sheetService.DeleteAsync(id);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("DeleteSheet")
 .WithOpenApi();
 
 app.Run();

@@ -1,0 +1,162 @@
+@inject ISheetService SheetService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Sheet ID" @bind-Value="sheet.SheetId" 
+                                     Required="true" RequiredError="Sheet ID is required"
+                                     HelperText="Unique identifier for the sheet" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Grade" @bind-Value="sheet.Grade" 
+                                     Required="true" RequiredError="Grade is required"
+                                     HelperText="Steel grade (e.g., S355, S235)" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudNumericField Label="Length (mm)" @bind-Value="sheet.LengthMm" 
+                                        Required="true" RequiredError="Length is required"
+                                        Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudNumericField Label="Width (mm)" @bind-Value="sheet.WidthMm" 
+                                        Required="true" RequiredError="Width is required"
+                                        Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudNumericField Label="Thickness (mm)" @bind-Value="sheet.ThicknessMm" 
+                                        Required="true" RequiredError="Thickness is required"
+                                        Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Weight (kg)" @bind-Value="sheet.Weight" 
+                                        Required="true" RequiredError="Weight is required"
+                                        Min="0" Step="0.01M" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Unit Price" @bind-Value="sheet.UnitPrice" 
+                                        Min="0" Step="0.01M"
+                                        HelperText="Price per unit" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Heat Number" @bind-Value="sheet.HeatNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Supplier Name" @bind-Value="sheet.SupplierName" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Invoice Number" @bind-Value="sheet.InvoiceNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Arrival Date" @bind-Date="arrivalDate" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Status" @bind-Value="sheet.IsReserved">
+                            <MudSelectItem Value="false">Available</MudSelectItem>
+                            <MudSelectItem Value="true">Reserved</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    @if (IsEdit)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudSelect Label="Usage Status" @bind-Value="sheet.IsUsed" Disabled="@sheet.IsUsed">
+                                <MudSelectItem Value="false">Not Used</MudSelectItem>
+                                <MudSelectItem Value="true">Used</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid)">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Sheet? Sheet { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private Sheet sheet = new();
+    private DateTime? arrivalDate;
+
+    private bool IsEdit => Sheet is not null;
+
+    protected override void OnInitialized()
+    {
+        if (IsEdit && Sheet is not null)
+        {
+            sheet = new Sheet
+            {
+                Id = Sheet.Id,
+                SheetId = Sheet.SheetId,
+                Grade = Sheet.Grade,
+                LengthMm = Sheet.LengthMm,
+                WidthMm = Sheet.WidthMm,
+                ThicknessMm = Sheet.ThicknessMm,
+                Weight = Sheet.Weight,
+                UnitPrice = Sheet.UnitPrice,
+                HeatNumber = Sheet.HeatNumber,
+                SupplierName = Sheet.SupplierName,
+                InvoiceNumber = Sheet.InvoiceNumber,
+                ArrivalDate = Sheet.ArrivalDate,
+                IsReserved = Sheet.IsReserved,
+                IsUsed = Sheet.IsUsed,
+                InvoiceLineId = Sheet.InvoiceLineId,
+                ProjectId = Sheet.ProjectId,
+                CertificateId = Sheet.CertificateId
+            };
+            arrivalDate = Sheet.ArrivalDate;
+        }
+        else
+        {
+            arrivalDate = DateTime.Today;
+            sheet.ArrivalDate = DateTime.UtcNow;
+            sheet.IsReserved = false;
+            sheet.IsUsed = false;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                // Update arrival date from the date picker
+                if (arrivalDate.HasValue)
+                {
+                    sheet.ArrivalDate = arrivalDate.Value.ToUniversalTime();
+                }
+
+                if (IsEdit)
+                {
+                    await SheetService.UpdateAsync(sheet);
+                }
+                else
+                {
+                    await SheetService.CreateAsync(sheet);
+                }
+                MudDialog.Close(DialogResult.Ok(sheet));
+            }
+            catch (Exception ex)
+            {
+                // Handle error - show a snackbar with the error message
+                Snackbar.Add($"Error saving sheet: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
