@@ -985,8 +985,8 @@ namespace Mpm.Api.Migrations
                     LotId = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     InvoiceLineId = table.Column<int>(type: "int", nullable: true),
                     ProjectId = table.Column<int>(type: "int", nullable: true),
-                    Grade = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    ProfileType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    SteelGradeId = table.Column<int>(type: "int", nullable: true),
+                    ProfileTypeId = table.Column<int>(type: "int", nullable: true),
                     Dimension = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     LengthMm = table.Column<int>(type: "int", nullable: false),
                     Weight = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
@@ -998,8 +998,6 @@ namespace Mpm.Api.Migrations
                     UnitPrice = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     IsReserved = table.Column<bool>(type: "bit", nullable: false),
                     AvailableLengthMm = table.Column<int>(type: "int", nullable: false),
-                    ProfileTypeId = table.Column<int>(type: "int", nullable: true),
-                    SteelGradeId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -1610,11 +1608,6 @@ namespace Mpm.Api.Migrations
                 table: "Profiles",
                 columns: new[] { "TenantId", "LotId" },
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Profiles_TenantId_ProjectId_ProfileType",
-                table: "Profiles",
-                columns: new[] { "TenantId", "ProjectId", "ProfileType" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProfileTypes_TenantId_Code",

@@ -221,12 +221,6 @@ public class MpmDbContext : DbContext
             .Property(e => e.LotId)
             .HasMaxLength(10);
         modelBuilder.Entity<Profile>()
-            .Property(e => e.Grade)
-            .HasMaxLength(50);
-        modelBuilder.Entity<Profile>()
-            .Property(e => e.ProfileType)
-            .HasMaxLength(50);
-        modelBuilder.Entity<Profile>()
             .Property(e => e.HeatNumber)
             .HasMaxLength(50);
             
@@ -351,7 +345,7 @@ public class MpmDbContext : DbContext
             .HasIndex(e => new { e.TenantId, e.ProjectId, e.IsUsed });
             
         modelBuilder.Entity<Profile>()
-            .HasIndex(e => new { e.TenantId, e.ProjectId, e.ProfileType });
+            .HasIndex(e => new { e.TenantId, e.ProjectId, e.ProfileTypeId });
             
         modelBuilder.Entity<SheetUsage>()
             .HasIndex(e => new { e.TenantId, e.ProjectId, e.UsageDate });
@@ -400,6 +394,18 @@ public class MpmDbContext : DbContext
             .HasOne(e => e.Project)
             .WithMany()
             .HasForeignKey(e => e.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
+            
+        modelBuilder.Entity<Profile>()
+            .HasOne(e => e.SteelGrade)
+            .WithMany(e => e.Profiles)
+            .HasForeignKey(e => e.SteelGradeId)
+            .OnDelete(DeleteBehavior.SetNull);
+            
+        modelBuilder.Entity<Profile>()
+            .HasOne(e => e.ProfileType)
+            .WithMany(e => e.Profiles)
+            .HasForeignKey(e => e.ProfileTypeId)
             .OnDelete(DeleteBehavior.SetNull);
             
         modelBuilder.Entity<ProfileRemnant>()
