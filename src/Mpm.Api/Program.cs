@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Mpm.Data;
 using Mpm.Services;
 using Mpm.Domain.Entities;
+using Mpm.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,15 +12,85 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 
+// Add required services
+builder.Services.AddHttpContextAccessor();
+
 // Add DbContext
 builder.Services.AddDbContext<MpmDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("Mpm.Api")));
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        // Use in-memory database for development/testing
+        options.UseInMemoryDatabase("MpmTestDb");
+    }
+    else
+    {
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+            b => b.MigrationsAssembly("Mpm.Api"));
+    }
+});
 
 // Add MPM services
 builder.Services.AddMpmServices();
 
 var app = builder.Build();
+
+// Seed some test data for development
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<MpmDbContext>();
+    context.TenantId = "test-tenant";
+    
+    if (!context.Suppliers.Any())
+    {
+        var supplier = new Supplier
+        {
+            Name = "Test Supplier Ltd",
+            VatNumber = "LV12345678901",
+            Email = "test@supplier.com",
+            Currency = Constants.Currency.EUR,
+            IsActive = true
+        };
+        context.Suppliers.Add(supplier);
+        context.SaveChanges();
+        
+        var invoice = new Invoice
+        {
+            Number = "INV-001",
+            SupplierId = supplier.Id,
+            InvoiceDate = DateTime.UtcNow.AddDays(-5),
+            Currency = Constants.Currency.EUR,
+            SubTotal = 1000.00m,
+            TaxAmount = 210.00m,
+            TotalAmount = 1210.00m,
+            Notes = "Test invoice for demonstration",
+            Lines = new List<InvoiceLine>
+            {
+                new InvoiceLine
+                {
+                    Description = "Steel Profile HEB 200",
+                    ItemType = "Profile",
+                    Quantity = 10.5m,
+                    UnitOfMeasure = "m",
+                    UnitPrice = 50.00m,
+                    TotalPrice = 525.00m
+                },
+                new InvoiceLine
+                {
+                    Description = "Steel Sheet S355 10mm",
+                    ItemType = "Sheet",
+                    Quantity = 2.5m,
+                    UnitOfMeasure = "m²",
+                    UnitPrice = 190.00m,
+                    TotalPrice = 475.00m
+                }
+            }
+        };
+        context.Invoices.Add(invoice);
+        context.SaveChanges();
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
