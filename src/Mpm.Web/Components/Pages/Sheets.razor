@@ -1,0 +1,249 @@
+@page "/sheets"
+@inject ISheetService SheetService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Sheets Inventory - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Sheets Inventory</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex gap-4">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by size (e.g. 1000x500)..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                <MudSelect @bind-Value="selectedThickness" Placeholder="Filter by thickness" Clearable="true" Class="mt-0">
+                    @foreach (var thickness in availableThicknesses)
+                    {
+                        <MudSelectItem Value="thickness">@thickness mm</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.FilterList" 
+                          OnClick="ApplyFilters">Apply Filters</MudButton>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+                New Sheet
+            </MudButton>
+        </div>
+
+        <MudTabs @bind-ActiveTab="activeTab" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" 
+                 PanelClass="pa-6">
+            <MudTabPanel Text="Full Sheets" Icon="Icons.Material.Filled.Inventory">
+                <MudDataGrid Items="@filteredSheets" Filterable="true" SortMode="SortMode.Multiple" 
+                             Loading="@loading" RowsPerPage="10">
+                    <Columns>
+                        <PropertyColumn Property="x => x.SheetId" Title="Sheet ID" />
+                        <PropertyColumn Property="x => x.Grade" Title="Grade" />
+                        <PropertyColumn Property="x => x.LengthMm" Title="Length (mm)" />
+                        <PropertyColumn Property="x => x.WidthMm" Title="Width (mm)" />
+                        <PropertyColumn Property="x => x.ThicknessMm" Title="Thickness (mm)" />
+                        <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
+                        <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                        <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
+                        <PropertyColumn Property="x => x.IsUsed" Title="Status">
+                            <CellTemplate>
+                                <MudChip Color="@(context.Item!.IsUsed ? Color.Warning : (context.Item.IsReserved ? Color.Info : Color.Success))" 
+                                        Size="Size.Small">
+                                    @(context.Item.IsUsed ? "Used" : (context.Item.IsReserved ? "Reserved" : "Available"))
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn CellClass="d-flex justify-end">
+                            <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                              OnClick="@(() => OpenEditDialog(context.Item))" />
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Delete" 
+                                              Color="Color.Error" 
+                                              OnClick="@(() => DeleteSheet(context.Item))"
+                                              Disabled="@context.Item!.IsUsed" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Remnants" Icon="Icons.Material.Filled.Recycling">
+                <MudDataGrid Items="@filteredRemnantSheets" Filterable="true" SortMode="SortMode.Multiple" 
+                             Loading="@loadingRemnants" RowsPerPage="10">
+                    <Columns>
+                        <PropertyColumn Property="x => x.SheetId" Title="Sheet ID" />
+                        <PropertyColumn Property="x => x.Grade" Title="Grade" />
+                        <PropertyColumn Property="x => x.LengthMm" Title="Length (mm)" />
+                        <PropertyColumn Property="x => x.WidthMm" Title="Width (mm)" />
+                        <PropertyColumn Property="x => x.ThicknessMm" Title="Thickness (mm)" />
+                        <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
+                        <PropertyColumn Property="x => x.SupplierName" Title="Original Supplier" />
+                        <TemplateColumn Property="x => x.Usages" Title="Remnant Details">
+                            <CellTemplate>
+                                @foreach (var usage in context.Item!.Usages.Where(u => u.GeneratedRemnants))
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Info">
+                                        Nest: @usage.NestId
+                                    </MudChip>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </MudTabPanel>
+        </MudTabs>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<Sheet> sheets = new();
+    private List<Sheet> remnantSheets = new();
+    private List<Sheet> filteredSheets = new();
+    private List<Sheet> filteredRemnantSheets = new();
+    private bool loading = true;
+    private bool loadingRemnants = true;
+    private string searchString = "";
+    private int? selectedThickness = null;
+    private int activeTab = 0;
+    private List<int> availableThicknesses = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSheets();
+        await LoadRemnantSheets();
+        await LoadAvailableThicknesses();
+    }
+
+    private async Task LoadSheets()
+    {
+        loading = true;
+        try
+        {
+            sheets = (await SheetService.GetAllAsync()).ToList();
+            ApplyFiltersToSheets();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading sheets: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadRemnantSheets()
+    {
+        loadingRemnants = true;
+        try
+        {
+            remnantSheets = (await SheetService.GetRemnantSheetsAsync()).ToList();
+            ApplyFiltersToRemnantSheets();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading remnant sheets: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loadingRemnants = false;
+        }
+    }
+
+    private async Task LoadAvailableThicknesses()
+    {
+        try
+        {
+            var allSheets = await SheetService.GetAllAsync();
+            availableThicknesses = allSheets.Select(s => s.ThicknessMm).Distinct().OrderBy(t => t).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading thickness options: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadSheets();
+        await LoadRemnantSheets();
+    }
+
+    private void ApplyFiltersToSheets()
+    {
+        filteredSheets = FilterSheets(sheets);
+    }
+
+    private void ApplyFiltersToRemnantSheets()
+    {
+        filteredRemnantSheets = FilterSheets(remnantSheets);
+    }
+
+    private List<Sheet> FilterSheets(List<Sheet> sourceSheets)
+    {
+        return sourceSheets.Where(s =>
+        {
+            bool matchesSearch = string.IsNullOrEmpty(searchString) ||
+                               $"{s.LengthMm}x{s.WidthMm}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               $"{s.WidthMm}x{s.LengthMm}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               s.SheetId.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               s.Grade.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+
+            bool matchesThickness = !selectedThickness.HasValue || s.ThicknessMm == selectedThickness.Value;
+
+            return matchesSearch && matchesThickness;
+        }).ToList();
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters();
+        var dialog = DialogService.Show<SheetDialog>("Create Sheet", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadSheets();
+            await LoadAvailableThicknesses();
+            Snackbar.Add("Sheet created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Sheet sheet)
+    {
+        var parameters = new DialogParameters { ["Sheet"] = sheet };
+        var dialog = DialogService.Show<SheetDialog>("Edit Sheet", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadSheets();
+            await LoadRemnantSheets();
+            Snackbar.Add("Sheet updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task DeleteSheet(Sheet sheet)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Delete Sheet", 
+            $"Are you sure you want to delete sheet '{sheet.SheetId}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await SheetService.DeleteAsync(sheet.Id);
+                await LoadSheets();
+                Snackbar.Add("Sheet deleted successfully", Severity.Success);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting sheet: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}
