@@ -1,0 +1,121 @@
+@inject ISupplierService SupplierService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Company Name" @bind-Value="supplier.Name" 
+                                     Required="true" RequiredError="Company name is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="VAT Number" @bind-Value="supplier.VatNumber" 
+                                     Required="true" RequiredError="VAT number is required"
+                                     HelperText="Format: LV12345678901" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Registration Number" @bind-Value="supplier.RegistrationNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Currency" @bind-Value="supplier.Currency" Required="true">
+                            <MudSelectItem Value="@Constants.Currency.EUR">EUR</MudSelectItem>
+                            <MudSelectItem Value="@Constants.Currency.USD">USD</MudSelectItem>
+                            <MudSelectItem Value="@Constants.Currency.GBP">GBP</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Address" @bind-Value="supplier.Address" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Payment Terms" @bind-Value="supplier.PaymentTerms" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Email" @bind-Value="supplier.Email" 
+                                     InputType="InputType.Email" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Phone" @bind-Value="supplier.Phone" 
+                                     InputType="InputType.Telephone" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Status" @bind-Value="supplier.IsActive">
+                            <MudSelectItem Value="true">Active</MudSelectItem>
+                            <MudSelectItem Value="false">Inactive</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid)">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Supplier? Supplier { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private Supplier supplier = new();
+
+    private bool IsEdit => Supplier is not null;
+
+    protected override void OnInitialized()
+    {
+        if (IsEdit && Supplier is not null)
+        {
+            supplier = new Supplier
+            {
+                Id = Supplier.Id,
+                Name = Supplier.Name,
+                VatNumber = Supplier.VatNumber,
+                RegistrationNumber = Supplier.RegistrationNumber,
+                Address = Supplier.Address,
+                PaymentTerms = Supplier.PaymentTerms,
+                Currency = Supplier.Currency,
+                Email = Supplier.Email,
+                Phone = Supplier.Phone,
+                IsActive = Supplier.IsActive
+            };
+        }
+        else
+        {
+            supplier.Currency = Constants.Currency.EUR;
+            supplier.IsActive = true;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                if (IsEdit)
+                {
+                    await SupplierService.UpdateAsync(supplier);
+                }
+                else
+                {
+                    await SupplierService.CreateAsync(supplier);
+                }
+                MudDialog.Close(DialogResult.Ok(supplier));
+            }
+            catch (Exception ex)
+            {
+                // Handle error - could show a snackbar or error message
+                Console.WriteLine($"Error saving supplier: {ex.Message}");
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

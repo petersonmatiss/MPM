@@ -1,0 +1,108 @@
+@page "/suppliers"
+@inject ISupplierService SupplierService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Suppliers - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Suppliers</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudTextField @bind-Value="searchString" Placeholder="Search suppliers..." 
+                         Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                         IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+                New Supplier
+            </MudButton>
+        </div>
+
+        <MudDataGrid Items="@suppliers" Filterable="true" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="10">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.VatNumber" Title="VAT Number" />
+                <PropertyColumn Property="x => x.Email" Title="Email" />
+                <PropertyColumn Property="x => x.Currency" Title="Currency" />
+                <PropertyColumn Property="x => x.IsActive" Title="Status">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.IsActive ? Color.Success : Color.Default)" 
+                                Size="Size.Small">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn CellClass="d-flex justify-end">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                      OnClick="@(() => OpenEditDialog(context.Item))" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewSupplier(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<Supplier> suppliers = new();
+    private bool loading = true;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        loading = true;
+        try
+        {
+            suppliers = (await SupplierService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading suppliers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters();
+        var dialog = DialogService.Show<SupplierDialog>("Create Supplier", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadSuppliers();
+            Snackbar.Add("Supplier created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Supplier supplier)
+    {
+        var parameters = new DialogParameters { ["Supplier"] = supplier };
+        var dialog = DialogService.Show<SupplierDialog>("Edit Supplier", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadSuppliers();
+            Snackbar.Add("Supplier updated successfully", Severity.Success);
+        }
+    }
+
+    private void ViewSupplier(Supplier supplier)
+    {
+        // Navigate to supplier details page
+        // Navigation.NavigateTo($"/suppliers/{supplier.Id}");
+    }
+}

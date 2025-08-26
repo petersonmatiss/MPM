@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Mpm.Data/Mpm.Data.csproj" />
     <ProjectReference Include="../../src/Mpm.Domain/Mpm.Domain.csproj" />
+    <ProjectReference Include="../../src/Mpm.Services/Mpm.Services.csproj" />
   </ItemGroup>
 
 </Project>

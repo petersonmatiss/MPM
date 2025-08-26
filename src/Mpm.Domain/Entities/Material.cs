@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Mpm.Domain.Entities;
 
 public class Material : TenantEntity
@@ -19,14 +21,35 @@ public class Material : TenantEntity
 
 public class Supplier : TenantEntity
 {
+    [Required(ErrorMessage = "Supplier name is required")]
+    [StringLength(200, ErrorMessage = "Name cannot exceed 200 characters")]
     public string Name { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "VAT number is required")]
+    [RegularExpression(@"^[A-Z]{2}[A-Z0-9]{2,12}$", ErrorMessage = "VAT number must be in valid EU format (e.g., LV12345678901)")]
     public string VatNumber { get; set; } = string.Empty;
+    
+    [StringLength(50, ErrorMessage = "Registration number cannot exceed 50 characters")]
     public string RegistrationNumber { get; set; } = string.Empty;
+    
+    [StringLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
     public string Address { get; set; } = string.Empty;
+    
+    [StringLength(100, ErrorMessage = "Payment terms cannot exceed 100 characters")]
     public string PaymentTerms { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "Currency is required")]
+    [StringLength(3, ErrorMessage = "Currency must be a 3-letter code")]
     public string Currency { get; set; } = Constants.Currency.EUR;
+    
+    [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+    [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
     public string Email { get; set; } = string.Empty;
+    
+    [Phone(ErrorMessage = "Please enter a valid phone number")]
+    [StringLength(20, ErrorMessage = "Phone cannot exceed 20 characters")]
     public string Phone { get; set; } = string.Empty;
+    
     public bool IsActive { get; set; } = true;
 
     // Navigation properties

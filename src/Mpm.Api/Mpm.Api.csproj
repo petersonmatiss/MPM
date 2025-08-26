@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Mpm.Data/Mpm.Data.csproj" />
+    <ProjectReference Include="../Mpm.Services/Mpm.Services.csproj" />
   </ItemGroup>
 
 </Project>
