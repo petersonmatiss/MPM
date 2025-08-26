@@ -1,0 +1,109 @@
+@inject ICustomerService CustomerService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Company Name" @bind-Value="customer.Name" 
+                                     Required="true" RequiredError="Company name is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="VAT Number" @bind-Value="customer.VatNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Registration Number" @bind-Value="customer.RegistrationNumber" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Currency" @bind-Value="customer.Currency" Required="true">
+                            <MudSelectItem Value="@Constants.Currency.EUR">EUR</MudSelectItem>
+                            <MudSelectItem Value="@Constants.Currency.USD">USD</MudSelectItem>
+                            <MudSelectItem Value="@Constants.Currency.GBP">GBP</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Address" @bind-Value="customer.Address" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Payment Terms" @bind-Value="customer.PaymentTerms" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Status" @bind-Value="customer.Status">
+                            <MudSelectItem Value="CustomerStatus.Active">Active</MudSelectItem>
+                            <MudSelectItem Value="CustomerStatus.Archived">Archived</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="!isFormValid">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Customer? Customer { get; set; }
+
+    private Customer customer = new();
+    private MudForm form = null!;
+    private bool isFormValid;
+    private string[] errors = { };
+
+    public bool IsEdit => Customer != null;
+
+    protected override void OnInitialized()
+    {
+        if (Customer != null)
+        {
+            customer = new Customer
+            {
+                Id = Customer.Id,
+                Name = Customer.Name,
+                VatNumber = Customer.VatNumber,
+                RegistrationNumber = Customer.RegistrationNumber,
+                Address = Customer.Address,
+                PaymentTerms = Customer.PaymentTerms,
+                Currency = Customer.Currency,
+                Status = Customer.Status
+            };
+        }
+        else
+        {
+            customer.Currency = Constants.Currency.EUR;
+            customer.Status = CustomerStatus.Active;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                if (IsEdit)
+                {
+                    await CustomerService.UpdateAsync(customer);
+                }
+                else
+                {
+                    await CustomerService.CreateAsync(customer);
+                }
+                MudDialog.Close(DialogResult.Ok(customer));
+            }
+            catch (Exception ex)
+            {
+                // Handle error - could show a snackbar or error message
+                Console.WriteLine($"Error saving customer: {ex.Message}");
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
