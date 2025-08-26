@@ -50,12 +50,7 @@ public class ProfileService : IProfileService
         }
 
         // Apply search filter (search across LotId, Dimension, HeatNumber)
-        if (!string.IsNullOrEmpty(searchFilter))
-        {
-            query = query.Where(p => 
-                EF.Functions.Like(p.LotId, $"%{searchFilter}%") ||
-                EF.Functions.Like(p.Dimension, $"%{searchFilter}%") ||
-                EF.Functions.Like(p.HeatNumber, $"%{searchFilter}%") ||
+                (p.HeatNumber != null && EF.Functions.Like(p.HeatNumber, $"%{searchFilter}%")) ||
                 (p.SteelGrade != null && EF.Functions.Like(p.SteelGrade.Code, $"%{searchFilter}%")) ||
                 (p.ProfileType != null && EF.Functions.Like(p.ProfileType.Code, $"%{searchFilter}%")));
         }
