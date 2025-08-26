@@ -1,0 +1,67 @@
+﻿<MudNavMenu>
+    <MudText Variant="Variant.h6" Class="px-4">MPM</MudText>
+    <MudText Variant="Variant.body2" Class="px-4 mud-text-secondary">MetalProjekts Management</MudText>
+    <MudDivider Class="my-2" />
+    
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+    
+    <MudNavGroup Text="CRM" Icon="Icons.Material.Filled.People" Expanded="true">
+        <MudNavLink Href="/customers" Icon="Icons.Material.Filled.Person">
+            Customers
+        </MudNavLink>
+        <MudNavLink Href="/projects" Icon="Icons.Material.Filled.Engineering">
+            Projects
+        </MudNavLink>
+        <MudNavLink Href="/quotations" Icon="Icons.Material.Filled.RequestQuote">
+            Quotations
+        </MudNavLink>
+    </MudNavGroup>
+    
+    <MudNavGroup Text="Materials" Icon="Icons.Material.Filled.Inventory" Expanded="false">
+        <MudNavLink Href="/materials" Icon="Icons.Material.Filled.Category">
+            Materials
+        </MudNavLink>
+        <MudNavLink Href="/suppliers" Icon="Icons.Material.Filled.Factory">
+            Suppliers
+        </MudNavLink>
+        <MudNavLink Href="/purchase-orders" Icon="Icons.Material.Filled.ShoppingCart">
+            Purchase Orders
+        </MudNavLink>
+        <MudNavLink Href="/inventory" Icon="Icons.Material.Filled.Warehouse">
+            Inventory
+        </MudNavLink>
+    </MudNavGroup>
+    
+    <MudNavGroup Text="Production" Icon="Icons.Material.Filled.Precision Manufacturing" Expanded="false">
+        <MudNavLink Href="/work-orders" Icon="Icons.Material.Filled.Assignment">
+            Work Orders
+        </MudNavLink>
+        <MudNavLink Href="/mes" Icon="Icons.Material.Filled.Build">
+            MES Terminal
+        </MudNavLink>
+    </MudNavGroup>
+    
+    <MudNavGroup Text="Quality" Icon="Icons.Material.Filled.VerifiedUser" Expanded="false">
+        <MudNavLink Href="/ncr" Icon="Icons.Material.Filled.ReportProblem">
+            NCR
+        </MudNavLink>
+        <MudNavLink Href="/declarations" Icon="Icons.Material.Filled.Assignment turned in">
+            DoP
+        </MudNavLink>
+        <MudNavLink Href="/certificates" Icon="Icons.Material.Filled.Certificate">
+            Certificates
+        </MudNavLink>
+    </MudNavGroup>
+    
+    <MudNavGroup Text="Reports" Icon="Icons.Material.Filled.Analytics" Expanded="false">
+        <MudNavLink Href="/reports/kpi" Icon="Icons.Material.Filled.Dashboard">
+            KPI Dashboard
+        </MudNavLink>
+        <MudNavLink Href="/reports/oee" Icon="Icons.Material.Filled.Timeline">
+            OEE
+        </MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
+

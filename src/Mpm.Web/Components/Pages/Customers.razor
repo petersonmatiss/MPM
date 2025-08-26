@@ -1,0 +1,107 @@
+﻿@page "/customers"
+@inject ICustomerService CustomerService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Customers - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Customers</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudTextField @bind-Value="searchString" Placeholder="Search customers..." 
+                         Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                         IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+                New Customer
+            </MudButton>
+        </div>
+
+        <MudDataGrid Items="@customers" Filterable="true" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="10">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.VatNumber" Title="VAT Number" />
+                <PropertyColumn Property="x => x.Currency" Title="Currency" />
+                <PropertyColumn Property="x => x.Status" Title="Status">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.Status == CustomerStatus.Active ? Color.Success : Color.Default)" 
+                                Size="Size.Small">
+                            @context.Item.Status
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn CellClass="d-flex justify-end">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                      OnClick="@(() => OpenEditDialog(context.Item))" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewCustomer(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<Customer> customers = new();
+    private bool loading = true;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        loading = true;
+        try
+        {
+            customers = (await CustomerService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading customers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters();
+        var dialog = DialogService.Show<CustomerDialog>("Create Customer", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadCustomers();
+            Snackbar.Add("Customer created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Customer customer)
+    {
+        var parameters = new DialogParameters { ["Customer"] = customer };
+        var dialog = DialogService.Show<CustomerDialog>("Edit Customer", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadCustomers();
+            Snackbar.Add("Customer updated successfully", Severity.Success);
+        }
+    }
+
+    private void ViewCustomer(Customer customer)
+    {
+        // Navigate to customer details page
+        // Navigation.NavigateTo($"/customers/{customer.Id}");
+    }
+}

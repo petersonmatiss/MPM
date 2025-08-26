@@ -1,0 +1,130 @@
+﻿@page "/"
+
+<PageTitle>MPM - Dashboard</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Dashboard</MudText>
+<MudText Class="mb-8">Welcome to MPM - MetalProjekts Management System</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Class="rounded-lg pb-4">
+            <MudCardContent Class="pb-0">
+                <div class="d-flex justify-space-between">
+                    <div>
+                        <MudText Variant="Variant.subtitle1" Class="mud-text-secondary mb-2">
+                            Active Projects
+                        </MudText>
+                        <MudText Variant="Variant.h4">12</MudText>
+                    </div>
+                    <MudIcon Icon="Icons.Material.Filled.Engineering" Size="Size.Large" Class="mud-text-secondary" />
+                </div>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Class="rounded-lg pb-4">
+            <MudCardContent Class="pb-0">
+                <div class="d-flex justify-space-between">
+                    <div>
+                        <MudText Variant="Variant.subtitle1" Class="mud-text-secondary mb-2">
+                            Open Work Orders
+                        </MudText>
+                        <MudText Variant="Variant.h4">45</MudText>
+                    </div>
+                    <MudIcon Icon="Icons.Material.Filled.Assignment" Size="Size.Large" Class="mud-text-secondary" />
+                </div>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Class="rounded-lg pb-4">
+            <MudCardContent Class="pb-0">
+                <div class="d-flex justify-space-between">
+                    <div>
+                        <MudText Variant="Variant.subtitle1" Class="mud-text-secondary mb-2">
+                            Material Lots
+                        </MudText>
+                        <MudText Variant="Variant.h4">234</MudText>
+                    </div>
+                    <MudIcon Icon="Icons.Material.Filled.Inventory" Size="Size.Large" Class="mud-text-secondary" />
+                </div>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Class="rounded-lg pb-4">
+            <MudCardContent Class="pb-0">
+                <div class="d-flex justify-space-between">
+                    <div>
+                        <MudText Variant="Variant.subtitle1" Class="mud-text-secondary mb-2">
+                            OEE Today
+                        </MudText>
+                        <MudText Variant="Variant.h4">87%</MudText>
+                    </div>
+                    <MudIcon Icon="Icons.Material.Filled.TrendingUp" Size="Size.Large" Class="mud-text-secondary" />
+                </div>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Class="mt-8">
+    <MudItem xs="12" md="8">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Variant="Variant.h6">Recent Activity</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudStack>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="Icons.Material.Filled.Add" Class="mr-3" />
+                        <MudText>New project PRJ-2024-001 created</MudText>
+                    </div>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="Icons.Material.Filled.Done" Class="mr-3" />
+                        <MudText>Work order WO-123 completed</MudText>
+                    </div>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="Icons.Material.Filled.LocalShipping" Class="mr-3" />
+                        <MudText>Material delivery received for PO-456</MudText>
+                    </div>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="Icons.Material.Filled.Assignment" Class="mr-3" />
+                        <MudText>Declaration of Performance DOP-789 issued</MudText>
+                    </div>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" md="4">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Variant="Variant.h6">Quick Actions</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudStack>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" FullWidth="true">
+                        New Project
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="Icons.Material.Filled.Assignment" FullWidth="true">
+                        Create Work Order
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="Icons.Material.Filled.ShoppingCart" FullWidth="true">
+                        New Purchase Order
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="Icons.Material.Filled.RequestQuote" FullWidth="true">
+                        Generate Quotation
+                    </MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
