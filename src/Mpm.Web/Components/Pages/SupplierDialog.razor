@@ -111,8 +111,8 @@
             }
             catch (Exception ex)
             {
-                // Handle error - could show a snackbar or error message
-                Console.WriteLine($"Error saving supplier: {ex.Message}");
+                // Handle error - show a snackbar with the error message
+                Snackbar.Add($"Error saving supplier: {ex.Message}", Severity.Error);
             }
         }
     }
