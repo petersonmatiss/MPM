@@ -179,7 +179,7 @@
             bool matchesSearch = string.IsNullOrEmpty(searchString) ||
                                p.LotId.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
                                p.Dimension.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
-                               p.HeatNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               (p.HeatNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                                (p.SteelGrade?.Code.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                                (p.ProfileType?.Code.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
 
