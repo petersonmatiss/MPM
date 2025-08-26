@@ -128,6 +128,7 @@ public class InvoiceServiceTests
         };
         context.Suppliers.Add(supplier2);
         await context.SaveChangesAsync();
+        var service = new InvoiceService(context);
         
         var invoice1 = new Invoice { Number = "INV-004", SupplierId = supplier1.Id, Currency = Constants.Currency.EUR };
         var invoice2 = new Invoice { Number = "INV-005", SupplierId = supplier2.Id, Currency = Constants.Currency.EUR };
