@@ -169,23 +169,17 @@
 
     private void ApplyFiltersToSheets()
     {
-        filteredSheets = sheets.Where(s =>
-        {
-            bool matchesSearch = string.IsNullOrEmpty(searchString) ||
-                               $"{s.LengthMm}x{s.WidthMm}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
-                               $"{s.WidthMm}x{s.LengthMm}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
-                               s.SheetId.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
-                               s.Grade.Contains(searchString, StringComparison.OrdinalIgnoreCase);
-
-            bool matchesThickness = !selectedThickness.HasValue || s.ThicknessMm == selectedThickness.Value;
-
-            return matchesSearch && matchesThickness;
-        }).ToList();
+        filteredSheets = FilterSheets(sheets);
     }
 
     private void ApplyFiltersToRemnantSheets()
     {
-        filteredRemnantSheets = remnantSheets.Where(s =>
+        filteredRemnantSheets = FilterSheets(remnantSheets);
+    }
+
+    private List<Sheet> FilterSheets(List<Sheet> sourceSheets)
+    {
+        return sourceSheets.Where(s =>
         {
             bool matchesSearch = string.IsNullOrEmpty(searchString) ||
                                $"{s.LengthMm}x{s.WidthMm}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
