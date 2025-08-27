@@ -199,7 +199,7 @@
         var dialog = DialogService.Show<SheetDialog>("Create Sheet", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadSheets();
             await LoadAvailableThicknesses();
@@ -213,7 +213,7 @@
         var dialog = DialogService.Show<SheetDialog>("Edit Sheet", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadSheets();
             await LoadRemnantSheets();

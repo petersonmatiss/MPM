@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <WarningsNotAsErrors>CS0618</WarningsNotAsErrors> <!-- Allow obsolete warnings for backward compatibility -->
+    <WarningsNotAsErrors>CS0618;MUD0002</WarningsNotAsErrors> <!-- Allow obsolete warnings and MudBlazor analyzer warnings -->
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>

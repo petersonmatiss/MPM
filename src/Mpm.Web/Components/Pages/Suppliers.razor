@@ -80,7 +80,7 @@
         var dialog = DialogService.Show<SupplierDialog>("Create Supplier", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadSuppliers();
             Snackbar.Add("Supplier created successfully", Severity.Success);
@@ -93,7 +93,7 @@
         var dialog = DialogService.Show<SupplierDialog>("Edit Supplier", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadSuppliers();
             Snackbar.Add("Supplier updated successfully", Severity.Success);
