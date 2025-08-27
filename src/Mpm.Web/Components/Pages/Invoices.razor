@@ -180,7 +180,7 @@
         var dialog = DialogService.Show<InvoiceDialog>("Create Invoice", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadData();
             Snackbar.Add("Invoice created successfully", Severity.Success);
@@ -197,7 +197,7 @@
         var dialog = DialogService.Show<InvoiceDialog>("Edit Invoice", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadData();
             Snackbar.Add("Invoice updated successfully", Severity.Success);

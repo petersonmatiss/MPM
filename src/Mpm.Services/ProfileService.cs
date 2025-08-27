@@ -443,9 +443,9 @@ public class ProfileService : IProfileService
         // Return the usage record with navigation properties loaded
         return await _context.ProfileUsages
             .Include(u => u.Profile)
-                .ThenInclude(p => p.SteelGrade)
+                .ThenInclude(p => p!.SteelGrade)
             .Include(u => u.Profile)
-                .ThenInclude(p => p.ProfileType)
+                .ThenInclude(p => p!.ProfileType)
             .Include(u => u.Project)
             .Include(u => u.ManufacturingOrder)
             .FirstAsync(u => u.Id == usage.Id);
@@ -528,11 +528,11 @@ public class ProfileService : IProfileService
         // Return the usage record with navigation properties loaded
         return await _context.ProfileUsages
             .Include(u => u.ProfileRemnant)
-                .ThenInclude(r => r.Profile)
-                    .ThenInclude(p => p.SteelGrade)
+                .ThenInclude(r => r!.Profile)
+                    .ThenInclude(p => p!.SteelGrade)
             .Include(u => u.ProfileRemnant)
-                .ThenInclude(r => r.Profile)
-                    .ThenInclude(p => p.ProfileType)
+                .ThenInclude(r => r!.Profile)
+                    .ThenInclude(p => p!.ProfileType)
             .Include(u => u.Project)
             .Include(u => u.ManufacturingOrder)
             .FirstAsync(u => u.Id == usage.Id);
