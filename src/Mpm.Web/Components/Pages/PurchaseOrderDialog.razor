@@ -1,0 +1,282 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPurchaseOrderService PurchaseOrderService
+@inject ISupplierService SupplierService
+@inject IProjectService ProjectService
+@inject IMaterialService MaterialService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 600px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">
+                            @(IsEdit ? "Edit Purchase Order" : "Create Purchase Order")
+                        </MudText>
+                    </MudItem>
+
+                    <!-- PO Number -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="purchaseOrder.Number" Label="PO Number" Required="true"
+                                     RequiredError="PO number is required" />
+                    </MudItem>
+
+                    <!-- Supplier -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="purchaseOrder.SupplierId" Label="Supplier" Required="true"
+                                  RequiredError="Supplier is required">
+                            @foreach (var supplier in suppliers)
+                            {
+                                <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Order Date -->
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="orderDate" Label="Order Date" Required="true" />
+                    </MudItem>
+
+                    <!-- Delivery Date -->
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="deliveryDate" Label="Delivery Date" />
+                    </MudItem>
+
+                    <!-- Project -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="purchaseOrder.ProjectId" Label="Project" T="int?" Clearable="true">
+                            @foreach (var project in projects)
+                            {
+                                <MudSelectItem Value="project.Id">@project.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Currency -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="purchaseOrder.Currency" Label="Currency" Required="true">
+                            <MudSelectItem Value="@("EUR")">EUR</MudSelectItem>
+                            <MudSelectItem Value="@("USD")">USD</MudSelectItem>
+                            <MudSelectItem Value="@("GBP")">GBP</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Incoterms -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="purchaseOrder.Incoterms" Label="Incoterms" 
+                                     Placeholder="e.g., EXW, FCA, DAP" />
+                    </MudItem>
+
+                    <!-- Confirmed Status -->
+                    <MudItem xs="12" md="6">
+                        <MudSwitch @bind-Value="purchaseOrder.IsConfirmed" Label="Confirmed" T="bool" />
+                    </MudItem>
+
+                    <!-- Notes -->
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="purchaseOrder.Notes" Label="Notes" Lines="3" 
+                                     Placeholder="Additional notes or comments" />
+                    </MudItem>
+
+                    <!-- Order Lines Section -->
+                    <MudItem xs="12">
+                        <MudDivider Class="my-4" />
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Variant="Variant.H6">Order Lines</MudText>
+                            <MudButton Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" 
+                                      OnClick="AddLine">
+                                Add Line
+                            </MudButton>
+                        </div>
+
+                        @if (purchaseOrder.Lines.Any())
+                        {
+                            <MudGrid>
+                                @foreach (var line in purchaseOrder.Lines.ToList())
+                                {
+                                    <MudItem xs="12">
+                                        <MudCard Elevation="1" Class="pa-3 mb-2">
+                                            <MudGrid>
+                                                <MudItem xs="12" md="3">
+                                                    <MudSelect @bind-Value="line.MaterialId" Label="Material" Required="true" T="int">
+                                                        @foreach (var material in materials)
+                                                        {
+                                                            <MudSelectItem Value="material.Id">@material.Grade - @material.Description</MudSelectItem>
+                                                        }
+                                                    </MudSelect>
+                                                </MudItem>
+                                                <MudItem xs="12" md="2">
+                                                    <MudNumericField @bind-Value="line.Quantity" Label="Quantity" Min="0.01m" T="decimal" />
+                                                </MudItem>
+                                                <MudItem xs="12" md="2">
+                                                    <MudTextField @bind-Value="line.UnitOfMeasure" Label="Unit" />
+                                                </MudItem>
+                                                <MudItem xs="12" md="2">
+                                                    <MudNumericField @bind-Value="line.UnitPrice" Label="Unit Price" Min="0m" Format="C2" T="decimal" />
+                                                </MudItem>
+                                                <MudItem xs="12" md="2">
+                                                    <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                                        Total: @((line.Quantity * line.UnitPrice).ToString("C2"))
+                                                    </MudText>
+                                                </MudItem>
+                                                <MudItem xs="12" md="1">
+                                                    <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                                  Size="Size.Small" OnClick="@(() => RemoveLine(line))" />
+                                                </MudItem>
+                                                <MudItem xs="12">
+                                                    <MudTextField @bind-Value="line.Notes" Label="Line Notes" Placeholder="Optional notes for this line" />
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudCard>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary" Class="text-center">No lines added yet. Click "Add Line" to get started.</MudText>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid)">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PurchaseOrder? PurchaseOrder { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+
+    private PurchaseOrder purchaseOrder = new();
+    private List<Supplier> suppliers = new();
+    private List<Project> projects = new();
+    private List<Material> materials = new();
+    
+    private DateTime? orderDate;
+    private DateTime? deliveryDate;
+
+    private bool IsEdit => PurchaseOrder != null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        if (IsEdit && PurchaseOrder != null)
+        {
+            purchaseOrder = new PurchaseOrder
+            {
+                Id = PurchaseOrder.Id,
+                Number = PurchaseOrder.Number,
+                SupplierId = PurchaseOrder.SupplierId,
+                ProjectId = PurchaseOrder.ProjectId,
+                OrderDate = PurchaseOrder.OrderDate,
+                DeliveryDate = PurchaseOrder.DeliveryDate,
+                Incoterms = PurchaseOrder.Incoterms,
+                Currency = PurchaseOrder.Currency,
+                Notes = PurchaseOrder.Notes,
+                IsConfirmed = PurchaseOrder.IsConfirmed,
+                Lines = PurchaseOrder.Lines?.Select(l => new PurchaseOrderLine
+                {
+                    Id = l.Id,
+                    PurchaseOrderId = l.PurchaseOrderId,
+                    MaterialId = l.MaterialId,
+                    Quantity = l.Quantity,
+                    UnitOfMeasure = l.UnitOfMeasure,
+                    UnitPrice = l.UnitPrice,
+                    DiscountPercent = l.DiscountPercent,
+                    TaxCode = l.TaxCode,
+                    ProfileType = l.ProfileType,
+                    Notes = l.Notes
+                }).ToList() ?? new List<PurchaseOrderLine>()
+            };
+            
+            orderDate = PurchaseOrder.OrderDate;
+            deliveryDate = PurchaseOrder.DeliveryDate;
+        }
+        else
+        {
+            purchaseOrder.Currency = "EUR";
+            purchaseOrder.OrderDate = DateTime.UtcNow;
+            purchaseOrder.Lines = new List<PurchaseOrderLine>();
+            orderDate = DateTime.UtcNow;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            suppliers = (await SupplierService.GetAllAsync()).ToList();
+            projects = (await ProjectService.GetAllAsync()).ToList();
+            materials = (await MaterialService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddLine()
+    {
+        purchaseOrder.Lines.Add(new PurchaseOrderLine
+        {
+            UnitOfMeasure = "kg",
+            Quantity = 1,
+            UnitPrice = 0
+        });
+    }
+
+    private void RemoveLine(PurchaseOrderLine line)
+    {
+        purchaseOrder.Lines.Remove(line);
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                // Update dates from date pickers
+                if (orderDate.HasValue)
+                    purchaseOrder.OrderDate = orderDate.Value;
+                if (deliveryDate.HasValue)
+                    purchaseOrder.DeliveryDate = deliveryDate.Value;
+
+                if (IsEdit)
+                {
+                    await PurchaseOrderService.UpdateAsync(purchaseOrder);
+                }
+                else
+                {
+                    await PurchaseOrderService.CreateAsync(purchaseOrder);
+                }
+                
+                MudDialog.Close(DialogResult.Ok(purchaseOrder));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving purchase order: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

@@ -33,6 +33,9 @@ public interface IInventoryService
     Task UnreserveMaterialAsync(int lotId);
     Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType);
     Task<IEnumerable<InventoryLot>> SearchLotsAsync(string searchTerm);
+    Task<InventoryLot> CreateLotAsync(InventoryLot lot);
+    Task<InventoryLot> UpdateLotAsync(InventoryLot lot);
+    Task DeleteLotAsync(int id);
 }
 
 public interface IQuotationService
@@ -42,6 +45,17 @@ public interface IQuotationService
     Task<Quotation> CreateAsync(Quotation quotation);
     Task<Quotation> UpdateAsync(Quotation quotation);
     Task DeleteAsync(int id);
+}
+
+public interface IPurchaseOrderService
+{
+    Task<IEnumerable<PurchaseOrder>> GetAllAsync();
+    Task<PurchaseOrder?> GetByIdAsync(int id);
+    Task<PurchaseOrder> CreateAsync(PurchaseOrder purchaseOrder);
+    Task<PurchaseOrder> UpdateAsync(PurchaseOrder purchaseOrder);
+    Task DeleteAsync(int id);
+    Task<PurchaseOrder> ConfirmOrderAsync(int id);
+    Task<IEnumerable<PurchaseOrder>> GetBySupplierAsync(int supplierId);
 }
 
 public class MaterialService : IMaterialService
@@ -264,6 +278,117 @@ public class InventoryService : IInventoryService
                        (i.InvoiceNumber != null && i.InvoiceNumber.Contains(searchTerm)) ||
                        (i.Material != null && i.Material.Grade != null && i.Material.Grade.Contains(searchTerm)) ||
                        (i.Material != null && i.Material.Description != null && i.Material.Description.Contains(searchTerm)))
+            .Include(i => i.Material)
+            .Include(i => i.Project)
+            .OrderBy(i => i.ArrivalDate)
+            .ToListAsync();
+    }
+
+    public async Task<InventoryLot> CreateLotAsync(InventoryLot lot)
+    {
+        _context.InventoryLots.Add(lot);
+        await _context.SaveChangesAsync();
+        return lot;
+    }
+
+    public async Task<InventoryLot> UpdateLotAsync(InventoryLot lot)
+    {
+        _context.InventoryLots.Update(lot);
+        await _context.SaveChangesAsync();
+        return lot;
+    }
+
+    public async Task DeleteLotAsync(int id)
+    {
+        var lot = await _context.InventoryLots.FindAsync(id);
+        if (lot != null)
+        {
+            _context.InventoryLots.Remove(lot);
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+
+public class PurchaseOrderService : IPurchaseOrderService
+{
+    private readonly MpmDbContext _context;
+
+    public PurchaseOrderService(MpmDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<IEnumerable<PurchaseOrder>> GetAllAsync()
+    {
+        return await _context.PurchaseOrders
+            .Include(po => po.Supplier)
+            .Include(po => po.Project)
+            .Include(po => po.Lines)
+                .ThenInclude(l => l.Material)
+            .OrderByDescending(po => po.OrderDate)
+            .ToListAsync();
+    }
+
+    public async Task<PurchaseOrder?> GetByIdAsync(int id)
+    {
+        return await _context.PurchaseOrders
+            .Include(po => po.Supplier)
+            .Include(po => po.Project)
+            .Include(po => po.Lines)
+                .ThenInclude(l => l.Material)
+            .FirstOrDefaultAsync(po => po.Id == id);
+    }
+
+    public async Task<PurchaseOrder> CreateAsync(PurchaseOrder purchaseOrder)
+    {
+        _context.PurchaseOrders.Add(purchaseOrder);
+        await _context.SaveChangesAsync();
+        return purchaseOrder;
+    }
+
+    public async Task<PurchaseOrder> UpdateAsync(PurchaseOrder purchaseOrder)
+    {
+        _context.PurchaseOrders.Update(purchaseOrder);
+        await _context.SaveChangesAsync();
+        return purchaseOrder;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseOrder != null)
+        {
+            _context.PurchaseOrders.Remove(purchaseOrder);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<PurchaseOrder> ConfirmOrderAsync(int id)
+    {
+        var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseOrder == null)
+            throw new ArgumentException("Purchase order not found");
+
+        purchaseOrder.IsConfirmed = true;
+        await _context.SaveChangesAsync();
+        return purchaseOrder;
+    }
+
+    public async Task<IEnumerable<PurchaseOrder>> GetBySupplierAsync(int supplierId)
+    {
+        return await _context.PurchaseOrders
+            .Where(po => po.SupplierId == supplierId)
+            .Include(po => po.Supplier)
+            .Include(po => po.Lines)
+                .ThenInclude(l => l.Material)
+            .OrderByDescending(po => po.OrderDate)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType)
+    {
+        return await _context.InventoryLots
+            .Where(i => i.ProfileType != null && i.ProfileType.Contains(profileType))
             .Include(i => i.Material)
             .Include(i => i.Project)
             .OrderBy(i => i.ArrivalDate)
