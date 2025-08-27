@@ -79,7 +79,7 @@
         var dialog = DialogService.Show<CustomerDialog>("Create Customer", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadCustomers();
             Snackbar.Add("Customer created successfully", Severity.Success);
@@ -92,7 +92,7 @@
         var dialog = DialogService.Show<CustomerDialog>("Edit Customer", parameters);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadCustomers();
             Snackbar.Add("Customer updated successfully", Severity.Success);
