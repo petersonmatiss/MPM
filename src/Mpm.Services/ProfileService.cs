@@ -254,12 +254,9 @@ public class ProfileService : IProfileService
         if (string.IsNullOrEmpty(request.UsedBy))
             throw new InvalidOperationException("UsedBy is required.");
 
-        // Check if we can use transactions (not in InMemory for tests)
-        var useTransaction = _context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
-        
-        if (useTransaction)
+        // Attempt to use a transaction; fallback to direct processing if not supported
+        try
         {
-            // Use transaction for real databases
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
