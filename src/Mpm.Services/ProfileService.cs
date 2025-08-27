@@ -385,9 +385,8 @@ public class ProfileService : IProfileService
         if (profile == null)
             throw new InvalidOperationException($"Profile with LotId '{lotId}' not found.");
 
-        // Validate that pieces match the profile's piece length
-        if (request.UsedPieceLength != profile.PieceLength)
-            throw new InvalidOperationException($"Used piece length ({request.UsedPieceLength}mm) must match profile piece length ({profile.PieceLength}mm).");
+        // Note: No strict validation on used piece length vs profile piece length
+        // This allows flexible usage where actual cuts may be shorter than the full piece length
 
         // Check if sufficient pieces are available
         if (profile.PiecesAvailable < request.PiecesUsed)
@@ -465,9 +464,8 @@ public class ProfileService : IProfileService
         if (!remnant.IsUsable)
             throw new InvalidOperationException($"Remnant '{remnant.RemnantId}' is not usable.");
 
-        // Validate that pieces match the remnant's piece length
-        if (request.UsedPieceLength != remnant.PieceLength)
-            throw new InvalidOperationException($"Used piece length ({request.UsedPieceLength}mm) must match remnant piece length ({remnant.PieceLength}mm).");
+        // Note: No strict validation on used piece length vs remnant piece length
+        // This allows flexible usage where actual cuts may be shorter than the full remnant piece length
 
         // Check if sufficient pieces are available
         if (remnant.PiecesAvailable < request.PiecesUsed)
