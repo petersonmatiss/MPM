@@ -1,0 +1,115 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IInventoryService InventoryService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-width: none !important;">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Variant="Variant.h6">
+                        @(IsReserve ? "Reserve Material" : "Unreserve Material")
+                    </MudText>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Material" Value="@($"{InventoryLot?.Material?.Grade} - {InventoryLot?.Material?.Description}")" 
+                                 ReadOnly="true" />
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Heat Number" Value="@InventoryLot?.HeatNumber" ReadOnly="true" />
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Profile Type" Value="@InventoryLot?.ProfileType" ReadOnly="true" />
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="decimal" Label="Available Quantity" Value="@(InventoryLot?.Quantity ?? 0)" 
+                                    ReadOnly="true" Format="F2" Suffix="kg" />
+                </MudItem>
+                
+                @if (IsReserve)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="decimal" @bind-Value="reservationQuantity" Label="Quantity to Reserve" 
+                                        Min="0.01M" Max="@(InventoryLot?.Quantity ?? 0)" Step="0.01M" 
+                                        Required="true" Format="F2" Suffix="kg"
+                                        HelperText="Enter the quantity to reserve" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="notes" Label="Notes" 
+                                     HelperText="Optional notes about the reservation" 
+                                     Lines="3" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Warning">
+                            This will remove all reservations for this inventory lot and mark it as available.
+                        </MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@(IsReserve ? Color.Primary : Color.Warning)" 
+                   Variant="Variant.Filled" OnClick="Submit" 
+                   Disabled="@(IsReserve && reservationQuantity <= 0)">
+            @(IsReserve ? "Reserve" : "Unreserve")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public InventoryLot? InventoryLot { get; set; }
+    [Parameter] public bool IsReserve { get; set; } = true;
+
+    private decimal reservationQuantity = 0;
+    private string notes = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (InventoryLot != null && IsReserve)
+        {
+            reservationQuantity = InventoryLot.Quantity;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            if (InventoryLot == null) return;
+
+            if (IsReserve)
+            {
+                await InventoryService.ReserveMaterialAsync(InventoryLot.Id, reservationQuantity);
+                Snackbar.Add($"Successfully reserved {reservationQuantity:F2} kg of material", Severity.Success);
+            }
+            else
+            {
+                await InventoryService.UnreserveMaterialAsync(InventoryLot.Id);
+                Snackbar.Add("Material unreserved successfully", Severity.Success);
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}
