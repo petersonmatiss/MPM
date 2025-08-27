@@ -29,11 +29,11 @@
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Project ID" @bind-Value="request.ProjectId" 
-                                        Min="0" HelperText="Optional project association" />
+                                        T="int?" Min="0" HelperText="Optional project association" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Manufacturing Order ID" @bind-Value="request.ManufacturingOrderId" 
-                                        Min="0" HelperText="Optional manufacturing order" />
+                                        T="int?" Min="0" HelperText="Optional manufacturing order" />
                     </MudItem>
                     <MudItem xs="12">
                         <MudTextField Label="Notes" @bind-Value="request.Notes" Lines="3" 
