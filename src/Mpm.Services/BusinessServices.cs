@@ -247,7 +247,7 @@ public class InventoryService : IInventoryService
     public async Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType)
     {
         return await _context.InventoryLots
-            .Where(i => i.ProfileType.Contains(profileType))
+            .Where(i => i.ProfileType != null && i.ProfileType.Contains(profileType))
             .Include(i => i.Material)
             .Include(i => i.Project)
             .OrderBy(i => i.ArrivalDate)
