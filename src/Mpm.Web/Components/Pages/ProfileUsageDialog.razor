@@ -1,0 +1,116 @@
+@inject IProfileService ProfileService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    Using Profile: <strong>@Profile?.LotId</strong><br/>
+                    Available: <strong>@Profile?.PiecesAvailable pieces</strong> of <strong>@Profile?.PieceLength mm</strong> each
+                </MudAlert>
+                
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Used By" @bind-Value="request.UsedBy" 
+                                     Required="true" RequiredError="Used by is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Pieces Used" @bind-Value="request.PiecesUsed" 
+                                        Required="true" RequiredError="Number of pieces is required"
+                                        Min="1" Max="@Profile?.PiecesAvailable" 
+                                        HelperText="@($"Max: {Profile?.PiecesAvailable} pieces")" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
+                                        Required="true" RequiredError="Used piece length is required"
+                                        Min="1" Max="@Profile?.PieceLength"
+                                        HelperText="@($"Must be {Profile?.PieceLength} mm for this profile")" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Project ID" @bind-Value="request.ProjectId" 
+                                        Min="0" HelperText="Optional project association" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Manufacturing Order ID" @bind-Value="request.ManufacturingOrderId" 
+                                        Min="0" HelperText="Optional manufacturing order" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Notes" @bind-Value="request.Notes" Lines="3" 
+                                     HelperText="Optional notes about this usage" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6" Class="mt-4 mb-2">Remnant Creation (Optional)</MudText>
+                        <MudCheckBox @bind-Value="createRemnant" Label="Create remnants from used pieces" />
+                    </MudItem>
+                    
+                    @if (createRemnant)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudNumericField Label="Remnant Piece Length (mm)" @bind-Value="request.RemnantPieceLength" 
+                                            T="int?" Min="1" HelperText="Length of each remnant piece" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField Label="Remnant Pieces Created" @bind-Value="request.RemnantPiecesCreated" 
+                                            T="int?" Min="1" HelperText="Number of remnant pieces to create" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="!isFormValid">
+            Use Profile
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Profile? Profile { get; set; }
+
+    private MudForm form = default!;
+    private bool isFormValid;
+    private string[] errors = { };
+    private ProfileUsageRequest request = new();
+    private bool createRemnant = false;
+
+    protected override void OnInitialized()
+    {
+        if (Profile != null)
+        {
+            request.UsedPieceLength = Profile.PieceLength; // Default to the profile's piece length
+            request.PiecesUsed = 1; // Default to using 1 piece
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid && Profile != null)
+        {
+            try
+            {
+                // Clear remnant fields if not creating remnants
+                if (!createRemnant)
+                {
+                    request.RemnantPieceLength = null;
+                    request.RemnantPiecesCreated = null;
+                }
+
+                await ProfileService.UseProfileAsync(Profile.LotId, request);
+                MudDialog.Close(DialogResult.Ok(request));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error using profile: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

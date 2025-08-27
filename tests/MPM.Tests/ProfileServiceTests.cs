@@ -30,6 +30,8 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
+            PiecesAvailable = 1, // Will be set automatically in CreateAsync
             Weight = 1000.0m,
             Dimension = "200x200x15",
             HeatNumber = "H123456",
@@ -43,7 +45,8 @@ public class ProfileServiceTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal("A15", result.LotId);
-        Assert.Equal(12000, result.AvailableLengthMm); // Should be set to LengthMm initially
+        Assert.Equal(1, result.PiecesAvailable); // Should be set to 1 piece
+        Assert.Equal(12000, result.AvailableLengthMm); // Legacy field should be updated
         
         var savedProfile = await context.Profiles.FirstAsync();
         Assert.Equal("A15", savedProfile.LotId);
@@ -60,6 +63,7 @@ public class ProfileServiceTests
         {
             LotId = "15A", // Invalid pattern - should be letter then number
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m
         };
 
@@ -84,6 +88,7 @@ public class ProfileServiceTests
         {
             LotId = lotId,
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             HeatNumber = "H123456",
@@ -115,6 +120,7 @@ public class ProfileServiceTests
         {
             LotId = lotId,
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m
         };
 
@@ -134,6 +140,7 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
@@ -144,6 +151,7 @@ public class ProfileServiceTests
         {
             LotId = "A15", // Same LotId
             LengthMm = 10000,
+            PieceLength = 10000,
             Weight = 800.0m,
             Dimension = "180x180x12",
             SupplierName = "Another Supplier",
@@ -171,6 +179,7 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
@@ -213,6 +222,7 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
@@ -225,7 +235,7 @@ public class ProfileServiceTests
         var usage = new ProfileUsage
         {
             ProfileId = profile.Id,
-            UsedLengthMm = 2000,
+            UsedPieceLength = 2000,
             PiecesUsed = 1,
             UsageDate = DateTime.UtcNow,
             UsedBy = "Test User"
@@ -251,6 +261,7 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
@@ -278,6 +289,8 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
+            PiecesAvailable = 1,
             AvailableLengthMm = 12000,
             Weight = 1000.0m,
             IsReserved = false,
@@ -290,6 +303,8 @@ public class ProfileServiceTests
         {
             LotId = "B3",
             LengthMm = 10000,
+            PieceLength = 10000,
+            PiecesAvailable = 1,
             AvailableLengthMm = 10000,
             Weight = 800.0m,
             IsReserved = true,
@@ -320,6 +335,8 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
+            PiecesAvailable = 1,
             AvailableLengthMm = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
@@ -332,7 +349,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000, // Use the full piece length
             PiecesUsed = 1,
             Notes = "Test usage"
         };
@@ -344,13 +361,14 @@ public class ProfileServiceTests
         Assert.NotNull(usage);
         Assert.Equal(profile.Id, usage.ProfileId);
         Assert.Equal("Test User", usage.UsedBy);
-        Assert.Equal(2000, usage.UsedLengthMm);
+        Assert.Equal(12000, usage.UsedPieceLength);
         Assert.Equal(1, usage.PiecesUsed);
 
         // Check that stock was decremented
         var updatedProfile = await service.GetByLotIdAsync("A15");
         Assert.NotNull(updatedProfile);
-        Assert.Equal(10000, updatedProfile.AvailableLengthMm); // 12000 - (2000 * 1)
+        Assert.Equal(0, updatedProfile.PiecesAvailable); // All pieces used
+        Assert.Equal(0, updatedProfile.AvailableLengthMm); // Legacy field should be 0
     }
 
     [Fact]
@@ -363,8 +381,10 @@ public class ProfileServiceTests
         var profile = new Profile
         {
             LotId = "A15",
-            LengthMm = 12000,
-            AvailableLengthMm = 12000,
+            LengthMm = 36000, // Total length: 3 pieces of 12000mm each
+            PieceLength = 12000, // Each piece is 12000mm
+            PiecesAvailable = 3, // 3 pieces available
+            AvailableLengthMm = 36000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
@@ -376,8 +396,8 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 1500,
-            PiecesUsed = 3, // 3 pieces of 1500mm each = 4500mm total
+            UsedPieceLength = 12000, // Use full piece length
+            PiecesUsed = 2, // Use 2 pieces
             Notes = "Multiple pieces usage"
         };
 
@@ -386,13 +406,14 @@ public class ProfileServiceTests
 
         // Assert
         Assert.NotNull(usage);
-        Assert.Equal(1500, usage.UsedLengthMm);
-        Assert.Equal(3, usage.PiecesUsed);
+        Assert.Equal(12000, usage.UsedPieceLength);
+        Assert.Equal(2, usage.PiecesUsed);
 
         // Check that stock was decremented correctly
         var updatedProfile = await service.GetByLotIdAsync("A15");
         Assert.NotNull(updatedProfile);
-        Assert.Equal(7500, updatedProfile.AvailableLengthMm); // 12000 - (1500 * 3)
+        Assert.Equal(1, updatedProfile.PiecesAvailable); // 3 - 2 = 1 piece remaining
+        Assert.Equal(12000, updatedProfile.AvailableLengthMm); // 1 * 12000 = 12000mm remaining
     }
 
     [Fact]
@@ -405,25 +426,23 @@ public class ProfileServiceTests
         var profile = new Profile
         {
             LotId = "A15",
-            LengthMm = 12000,
+            LengthMm = 12000, // Total length: 1 piece of 12000mm
+            PieceLength = 12000, // Each piece is 12000mm
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
             UnitPrice = 50.00m
         };
 
-        // Create profile first which will set AvailableLengthMm correctly
+        // Create profile first which will set PiecesAvailable correctly
         await service.CreateAsync(profile);
         
-        // Now update it to have limited available length
-        profile.AvailableLengthMm = 5000; // Only 5000mm available
-        await service.UpdateAsync(profile);
-
+        // Profile should have 1 piece available, but we need 2 pieces
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 3000,
-            PiecesUsed = 2, // Need 6000mm total, but only 5000mm available
+            UsedPieceLength = 12000, // Use full piece length
+            PiecesUsed = 2, // Need 2 pieces, but only 1 available
             Notes = "Too much usage"
         };
 
@@ -431,13 +450,13 @@ public class ProfileServiceTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UseProfileAsync("A15", request));
 
-        Assert.Contains("Insufficient material available", exception.Message);
-        Assert.Contains("Required: 6000mm, Available: 5000mm", exception.Message);
+        Assert.Contains("Insufficient pieces available", exception.Message);
+        Assert.Contains("Required: 2 pieces, Available: 1 pieces", exception.Message);
 
         // Check that stock was not changed
         var unchangedProfile = await service.GetByLotIdAsync("A15");
         Assert.NotNull(unchangedProfile);
-        Assert.Equal(5000, unchangedProfile.AvailableLengthMm);
+        Assert.Equal(1, unchangedProfile.PiecesAvailable);
     }
 
     [Fact]
@@ -451,6 +470,8 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
+            PiecesAvailable = 1,
             AvailableLengthMm = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
@@ -463,9 +484,10 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000, // Use full piece length 
             PiecesUsed = 1,
-            RemnantLengthMm = 500,
+            RemnantPieceLength = 4000, // Create remnant pieces of 4000mm
+            RemnantPiecesCreated = 2, // Create 2 remnant pieces
             Notes = "Usage with remnant"
         };
 
@@ -475,21 +497,24 @@ public class ProfileServiceTests
         // Assert
         Assert.NotNull(usage);
         Assert.True(usage.RemnantFlag);
-        Assert.Equal(500, usage.RemnantLengthMm);
+        Assert.Equal(4000, usage.RemnantPieceLength);
+        Assert.Equal(2, usage.RemnantPiecesCreated);
 
         // Check that remnant was created
         var remnants = await service.GetRemnantsAsync(profile.Id);
         Assert.Single(remnants);
 
         var remnant = remnants.First();
-        Assert.Equal("A15-500", remnant.RemnantId);
-        Assert.Equal(500, remnant.LengthMm);
+        Assert.Contains("A15-4000-", remnant.RemnantId); // ID format includes length and random suffix
+        Assert.Equal(8000, remnant.LengthMm); // Total length: 4000 * 2 pieces
+        Assert.Equal(4000, remnant.PieceLength); // Each piece is 4000mm
+        Assert.Equal(2, remnant.PiecesAvailable); // 2 pieces available
         Assert.True(remnant.IsUsable);
         Assert.False(remnant.IsUsed);
         
-        // Verify weight calculation
-        var expectedWeight = profile.Weight * 500 / profile.LengthMm; // Proportional weight
-        Assert.Equal(expectedWeight, remnant.Weight);
+        // Verify weight calculation (should be proportional)
+        var expectedWeight = profile.Weight * 8000 / profile.LengthMm; // 8000mm total remnant vs 12000mm total profile
+        Assert.True(Math.Abs(expectedWeight - remnant.Weight) < 0.01m, $"Expected weight around {expectedWeight}, but got {remnant.Weight}");
     }
 
     [Fact]
@@ -502,7 +527,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000,
             PiecesUsed = 1,
             Notes = "Test usage"
         };
@@ -526,7 +551,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000,
             PiecesUsed = 1,
             Notes = "Test usage"
         };
@@ -539,9 +564,9 @@ public class ProfileServiceTests
     }
 
     [Theory]
-    [InlineData(0, "Used length must be greater than 0")]
-    [InlineData(-100, "Used length must be greater than 0")]
-    public async Task UseProfileAsync_InvalidUsedLength_ShouldThrowException(int usedLength, string expectedMessage)
+    [InlineData(0, "Used piece length must be greater than 0")]
+    [InlineData(-100, "Used piece length must be greater than 0")]
+    public async Task UseProfileAsync_InvalidUsedPieceLength_ShouldThrowException(int usedPieceLength, string expectedMessage)
     {
         // Arrange
         using var context = GetInMemoryDbContext();
@@ -550,7 +575,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = usedLength,
+            UsedPieceLength = usedPieceLength,
             PiecesUsed = 1,
             Notes = "Test usage"
         };
@@ -574,7 +599,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000,
             PiecesUsed = piecesUsed,
             Notes = "Test usage"
         };
@@ -598,7 +623,7 @@ public class ProfileServiceTests
         var request = new ProfileUsageRequest
         {
             UsedBy = usedBy,
-            UsedLengthMm = 2000,
+            UsedPieceLength = 12000,
             PiecesUsed = 1,
             Notes = "Test usage"
         };
@@ -621,24 +646,22 @@ public class ProfileServiceTests
         {
             LotId = "A15",
             LengthMm = 12000,
+            PieceLength = 12000,
             Weight = 1000.0m,
             Dimension = "200x200x15",
             SupplierName = "Test Supplier",
             UnitPrice = 50.00m
         };
 
-        // Create profile first which will set AvailableLengthMm correctly
+        // Create profile first which will set PiecesAvailable correctly
         await service.CreateAsync(profile);
         
-        // Now update it to have limited available length
-        profile.AvailableLengthMm = 1000;
-        await service.UpdateAsync(profile);
-
+        // Profile should have 1 piece, but we need 2 pieces
         var request = new ProfileUsageRequest
         {
             UsedBy = "Test User",
-            UsedLengthMm = 2000, // This will fail - not enough stock
-            PiecesUsed = 1,
+            UsedPieceLength = 12000, // This will fail - not enough pieces
+            PiecesUsed = 2, // Need 2 pieces but only 1 available
             Notes = "This should fail"
         };
 
@@ -649,7 +672,7 @@ public class ProfileServiceTests
         // Verify no changes were made
         var unchangedProfile = await service.GetByLotIdAsync("A15");
         Assert.NotNull(unchangedProfile);
-        Assert.Equal(1000, unchangedProfile.AvailableLengthMm);
+        Assert.Equal(1, unchangedProfile.PiecesAvailable);
 
         // Verify no usage records were created
         var usages = await context.ProfileUsages.Where(u => u.ProfileId == profile.Id).ToListAsync();

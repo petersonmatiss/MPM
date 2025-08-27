@@ -47,8 +47,12 @@
                         <PropertyColumn Property="x => x.ProfileType!.Code" Title="Type" />
                         <PropertyColumn Property="x => x.SteelGrade!.Code" Title="Grade" />
                         <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
-                        <PropertyColumn Property="x => x.LengthMm" Title="Length (mm)" />
-                        <PropertyColumn Property="x => x.AvailableLengthMm" Title="Available (mm)" />
+                        <PropertyColumn Property="x => x.PieceLength" Title="Piece Length (mm)" />
+                        <TemplateColumn Title="Pieces">
+                            <CellTemplate>
+                                @context.Item!.PiecesAvailable pieces (Total: @(context.Item.PiecesAvailable * context.Item.PieceLength) mm)
+                            </CellTemplate>
+                        </TemplateColumn>
                         <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
                         <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="C2" />
                         <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
@@ -63,6 +67,10 @@
                         </PropertyColumn>
                         <TemplateColumn CellClass="d-flex justify-end">
                             <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.PlayArrow" 
+                                              Color="Color.Primary" Title="Use Profile"
+                                              OnClick="@(() => OpenUseProfileDialog(context.Item))"
+                                              Disabled="@(context.Item!.PiecesAvailable == 0)" />
                                 <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
                                               OnClick="@(() => OpenEditDialog(context.Item))" />
                                 <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Delete" 
@@ -83,14 +91,59 @@
                         <PropertyColumn Property="x => x.ProfileType!.Code" Title="Type" />
                         <PropertyColumn Property="x => x.SteelGrade!.Code" Title="Grade" />
                         <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
-                        <PropertyColumn Property="x => x.AvailableLengthMm" Title="Available (mm)" />
+                        <PropertyColumn Property="x => x.PieceLength" Title="Piece Length (mm)" />
+                        <TemplateColumn Title="Available Pieces">
+                            <CellTemplate>
+                                @context.Item!.PiecesAvailable pieces (Total: @(context.Item.PiecesAvailable * context.Item.PieceLength) mm)
+                            </CellTemplate>
+                        </TemplateColumn>
                         <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
                         <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
                         <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
                         <TemplateColumn CellClass="d-flex justify-end">
                             <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.PlayArrow" 
+                                              Color="Color.Primary" Title="Use Profile"
+                                              OnClick="@(() => OpenUseProfileDialog(context.Item))"
+                                              Disabled="@(context.Item!.PiecesAvailable == 0)" />
                                 <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
                                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Remnants" Icon="Icons.Material.Filled.Inventory">
+                <MudDataGrid Items="@remnants" Filterable="true" SortMode="SortMode.Multiple" 
+                             Loading="@loadingRemnants" RowsPerPage="10">
+                    <Columns>
+                        <PropertyColumn Property="x => x.RemnantId" Title="Remnant ID" />
+                        <PropertyColumn Property="x => x.Profile.LotId" Title="Original Lot" />
+                        <PropertyColumn Property="x => x.Profile.ProfileType!.Code" Title="Type" />
+                        <PropertyColumn Property="x => x.Profile.SteelGrade!.Code" Title="Grade" />
+                        <PropertyColumn Property="x => x.PieceLength" Title="Piece Length (mm)" />
+                        <TemplateColumn Title="Available Pieces">
+                            <CellTemplate>
+                                @context.Item!.PiecesAvailable pieces (Total: @(context.Item.PiecesAvailable * context.Item.PieceLength) mm)
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Weight" Title="Weight (kg)" Format="F2" />
+                        <PropertyColumn Property="x => x.CreatedDate" Title="Created" Format="yyyy-MM-dd" />
+                        <PropertyColumn Property="x => x.IsUsable" Title="Status">
+                            <CellTemplate>
+                                <MudChip Color="@(context.Item!.IsUsable && context.Item.PiecesAvailable > 0 ? Color.Success : Color.Warning)" 
+                                        Size="Size.Small">
+                                    @(context.Item.IsUsable && context.Item.PiecesAvailable > 0 ? "Available" : context.Item.IsUsed ? "Used" : "Not Usable")
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn CellClass="d-flex justify-end">
+                            <CellTemplate>
+                                <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.PlayArrow" 
+                                              Color="Color.Primary" Title="Use Remnant"
+                                              OnClick="@(() => OpenUseRemnantDialog(context.Item))"
+                                              Disabled="@(!context.Item!.IsUsable || context.Item.PiecesAvailable == 0)" />
                             </CellTemplate>
                         </TemplateColumn>
                     </Columns>
@@ -105,6 +158,7 @@
     private List<Profile> availableProfiles = new();
     private List<Profile> filteredProfiles = new();
     private List<Profile> filteredAvailableProfiles = new();
+    private List<ProfileRemnant> remnants = new();
     private List<SteelGrade> steelGrades = new();
     private List<ProfileType> profileTypes = new();
     
@@ -113,6 +167,7 @@
     private int? selectedSteelGradeId;
     private bool loading = false;
     private bool loadingAvailable = false;
+    private bool loadingRemnants = false;
     private int activeTab = 0;
 
     protected override async Task OnInitializedAsync()
@@ -120,6 +175,7 @@
         await LoadLookupData();
         await LoadProfiles();
         await LoadAvailableProfiles();
+        await LoadRemnants();
     }
 
     private async Task LoadLookupData()
@@ -153,6 +209,19 @@
         finally
         {
             loadingAvailable = false;
+        }
+    }
+
+    private async Task LoadRemnants()
+    {
+        loadingRemnants = true;
+        try
+        {
+            remnants = (await ProfileService.GetAllRemnantsAsync(true)).ToList();
+        }
+        finally
+        {
+            loadingRemnants = false;
         }
     }
 
@@ -219,7 +288,46 @@
         {
             await LoadProfiles();
             await LoadAvailableProfiles();
+            await LoadRemnants();
             Snackbar.Add("Profile updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenUseProfileDialog(Profile profile)
+    {
+        var parameters = new DialogParameters<ProfileUsageDialog>
+        {
+            { x => x.Profile, profile }
+        };
+
+        var dialog = await DialogService.ShowAsync<ProfileUsageDialog>("Use Profile", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProfiles();
+            await LoadAvailableProfiles();
+            await LoadRemnants();
+            Snackbar.Add("Profile usage recorded successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenUseRemnantDialog(ProfileRemnant remnant)
+    {
+        var parameters = new DialogParameters<RemnantUsageDialog>
+        {
+            { x => x.Remnant, remnant }
+        };
+
+        var dialog = await DialogService.ShowAsync<RemnantUsageDialog>("Use Remnant", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProfiles();
+            await LoadAvailableProfiles();
+            await LoadRemnants();
+            Snackbar.Add("Remnant usage recorded successfully", Severity.Success);
         }
     }
 
