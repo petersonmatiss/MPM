@@ -540,10 +540,8 @@ public class ProfileService : IProfileService
 
     private decimal CalculateRemnantWeight(Profile profile, int remnantPieceLength, int remnantPieces)
     {
-            // Calculate weight per mm, then multiply by remnant piece length and number of pieces
-            var weightPerMm = profile.Weight / (profile.LengthMm);
-            return weightPerMm * remnantPieceLength * remnantPieces;
-        }
-        return 0;
+        // Calculate weight per mm, then multiply by remnant piece length and number of pieces
+        var weightPerMm = profile.Weight / (profile.LengthMm);
+        return weightPerMm * remnantPieceLength * remnantPieces;
     }
 }

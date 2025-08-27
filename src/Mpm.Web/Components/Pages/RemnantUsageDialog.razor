@@ -17,15 +17,15 @@
                                      Required="true" RequiredError="Used by is required" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudNumericField Label="Pieces Used" @bind-Value="request.PiecesUsed" 
+                        <MudNumericField T="int" Label="Pieces Used" @bind-Value="request.PiecesUsed" 
                                         Required="true" RequiredError="Number of pieces is required"
-                                        Min="1" Max="@Remnant?.PiecesAvailable" 
+                                        Min="1" Max="@(Remnant?.PiecesAvailable ?? 999)" 
                                         HelperText="@($"Max: {Remnant?.PiecesAvailable} pieces")" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudNumericField Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
+                        <MudNumericField T="int" Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
                                         Required="true" RequiredError="Used piece length is required"
-                                        Min="1" Max="@Remnant?.PieceLength"
+                                        Min="1" Max="@(Remnant?.PieceLength ?? 999999)"
                                         HelperText="@($"Enter a length between 1 and {Remnant?.PieceLength} mm")" />
                     </MudItem>
                     <MudItem xs="12" md="6">
