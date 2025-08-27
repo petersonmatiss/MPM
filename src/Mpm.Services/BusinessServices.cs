@@ -257,13 +257,13 @@ public class InventoryService : IInventoryService
     public async Task<IEnumerable<InventoryLot>> SearchLotsAsync(string searchTerm)
     {
         return await _context.InventoryLots
-            .Where(i => (i.HeatNumber?.Contains(searchTerm) ?? false) ||
-                       (i.ProfileType?.Contains(searchTerm) ?? false) ||
-                       (i.Location?.Contains(searchTerm) ?? false) ||
-                       (i.SupplierName?.Contains(searchTerm) ?? false) ||
-                       (i.InvoiceNumber?.Contains(searchTerm) ?? false) ||
-                       (i.Material?.Grade?.Contains(searchTerm) ?? false) ||
-                       (i.Material?.Description?.Contains(searchTerm) ?? false))
+            .Where(i => (i.HeatNumber != null && i.HeatNumber.Contains(searchTerm)) ||
+                       (i.ProfileType != null && i.ProfileType.Contains(searchTerm)) ||
+                       (i.Location != null && i.Location.Contains(searchTerm)) ||
+                       (i.SupplierName != null && i.SupplierName.Contains(searchTerm)) ||
+                       (i.InvoiceNumber != null && i.InvoiceNumber.Contains(searchTerm)) ||
+                       (i.Material != null && i.Material.Grade != null && i.Material.Grade.Contains(searchTerm)) ||
+                       (i.Material != null && i.Material.Description != null && i.Material.Description.Contains(searchTerm)))
             .Include(i => i.Material)
             .Include(i => i.Project)
             .OrderBy(i => i.ArrivalDate)
