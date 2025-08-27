@@ -25,7 +25,7 @@
                         <MudNumericField Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
                                         Required="true" RequiredError="Used piece length is required"
                                         Min="1" Max="@Profile?.PieceLength"
-                                        HelperText="@($"Must be {Profile?.PieceLength} mm for this profile")" />
+                                        HelperText="@($"Maximum: {Profile?.PieceLength} mm per piece")" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Project ID" @bind-Value="request.ProjectId" 
