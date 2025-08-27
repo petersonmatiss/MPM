@@ -41,14 +41,24 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudNumericField Label="Length (mm)" @bind-Value="profile.LengthMm" 
-                                        Required="true" RequiredError="Length is required"
-                                        Min="1" />
+                        <MudNumericField Label="Total Length (mm)" @bind-Value="profile.LengthMm" 
+                                        Required="true" RequiredError="Total length is required"
+                                        Min="1" HelperText="Total length of all pieces" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Piece Length (mm)" @bind-Value="profile.PieceLength" 
+                                        Required="true" RequiredError="Piece length is required"
+                                        Min="1" HelperText="Length of each individual piece" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Pieces Available" @bind-Value="profile.PiecesAvailable" 
+                                        Required="true" RequiredError="Number of pieces is required"
+                                        Min="0" HelperText="Number of pieces available" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Weight (kg)" @bind-Value="profile.Weight" 
                                         Required="true" RequiredError="Weight is required"
-                                        Min="0" Step="0.01M" />
+                                        Min="0" Step="0.01M" HelperText="Total weight of all pieces" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Unit Price" @bind-Value="profile.UnitPrice" 
@@ -116,6 +126,8 @@
                 ProfileTypeId = Profile.ProfileTypeId,
                 Dimension = Profile.Dimension,
                 LengthMm = Profile.LengthMm,
+                PieceLength = Profile.PieceLength,
+                PiecesAvailable = Profile.PiecesAvailable,
                 AvailableLengthMm = Profile.AvailableLengthMm,
                 Weight = Profile.Weight,
                 UnitPrice = Profile.UnitPrice,
@@ -135,6 +147,7 @@
             arrivalDate = DateTime.Today;
             profile.ArrivalDate = DateTime.UtcNow;
             profile.IsReserved = false;
+            profile.PiecesAvailable = 1; // Default to 1 piece
         }
     }
 

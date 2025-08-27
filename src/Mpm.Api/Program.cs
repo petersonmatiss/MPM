@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mpm.Data;
 using Mpm.Services;
+using Mpm.Services.DTOs;
 using Mpm.Domain.Entities;
 using Mpm.Domain;
 
@@ -278,8 +279,10 @@ if (app.Environment.IsDevelopment())
                     SteelGradeId = s355Grade.Id,
                     ProfileTypeId = hebType.Id,
                     Dimension = "200x200x15",
-                    LengthMm = 12000,
-                    AvailableLengthMm = 12000,
+                    LengthMm = 12000, // Total length of all pieces
+                    PieceLength = 12000, // Each piece is 12000mm long
+                    PiecesAvailable = 1, // 1 piece available
+                    AvailableLengthMm = 12000, // Legacy field
                     Weight = 1272.0m, // 106 kg/m * 12m
                     HeatNumber = "H987654",
                     SupplierName = "Test Supplier Ltd",
@@ -294,9 +297,11 @@ if (app.Environment.IsDevelopment())
                     SteelGradeId = s235Grade.Id,
                     ProfileTypeId = ipeType.Id,
                     Dimension = "200x100x8.5",
-                    LengthMm = 10000,
-                    AvailableLengthMm = 6000, // 4m has been used
-                    Weight = 307.0m, // 30.7 kg/m * 10m
+                    LengthMm = 20000, // Total length: 2 pieces of 10000mm each
+                    PieceLength = 10000, // Each piece is 10000mm long
+                    PiecesAvailable = 2, // 2 pieces available initially (later we'll simulate usage)
+                    AvailableLengthMm = 6000, // Legacy field - shows 4m has been used (will be updated)
+                    Weight = 614.0m, // 30.7 kg/m * 20m
                     HeatNumber = "H456789",
                     SupplierName = "Test Supplier Ltd",
                     InvoiceNumber = "INV-001",
@@ -310,9 +315,11 @@ if (app.Environment.IsDevelopment())
                     SteelGradeId = s355Grade.Id,
                     ProfileTypeId = hebType.Id,
                     Dimension = "200x200x15",
-                    LengthMm = 8000,
-                    AvailableLengthMm = 8000,
-                    Weight = 848.0m, // 106 kg/m * 8m
+                    LengthMm = 24000, // Total length: 3 pieces of 8000mm each
+                    PieceLength = 8000, // Each piece is 8000mm long
+                    PiecesAvailable = 3, // 3 pieces available
+                    AvailableLengthMm = 24000, // Legacy field
+                    Weight = 2544.0m, // 106 kg/m * 24m
                     HeatNumber = "H123789",
                     SupplierName = "Test Supplier Ltd",
                     InvoiceNumber = "INV-001",
@@ -324,6 +331,48 @@ if (app.Environment.IsDevelopment())
             
             context.Profiles.AddRange(profiles);
             context.SaveChanges();
+            
+            // Simulate usage of profile B3 to show piece-based tracking
+            var profileB3 = profiles.FirstOrDefault(p => p.LotId == "B3");
+            if (profileB3 != null)
+            {
+                // Reduce available pieces from 2 to 1 (one 10m piece was used)
+                profileB3.PiecesAvailable = 1;
+                profileB3.AvailableLengthMm = profileB3.PiecesAvailable * profileB3.PieceLength;
+                
+                // Create a usage record for the used piece
+                var usage = new ProfileUsage
+                {
+                    ProfileId = profileB3.Id,
+                    UsageDate = DateTime.UtcNow.AddDays(-3),
+                    UsedBy = "Jane Smith",
+                    UsedPieceLength = 10000,
+                    PiecesUsed = 1,
+                    RemnantFlag = true,
+                    RemnantPieceLength = 4000,
+                    RemnantPiecesCreated = 1,
+                    Notes = "Cut for beam project - created 4m remnant"
+                };
+                context.ProfileUsages.Add(usage);
+                
+                // Create a remnant from the used piece
+                var remnant = new ProfileRemnant
+                {
+                    ProfileId = profileB3.Id,
+                    RemnantId = "B3-4000-r001",
+                    LengthMm = 4000,
+                    PieceLength = 4000,
+                    PiecesAvailable = 1,
+                    Weight = 122.8m, // 30.7 kg/m * 4m
+                    IsUsable = true,
+                    IsUsed = false,
+                    CreatedDate = DateTime.UtcNow.AddDays(-3),
+                    Notes = "Created from usage: Cut for beam project - created 4m remnant"
+                };
+                context.ProfileRemnants.Add(remnant);
+                
+                context.SaveChanges();
+            }
         }
     }
 }
@@ -588,6 +637,60 @@ app.MapGet("/api/profiles/{id}/remnants", async (int id, IProfileService profile
     return Results.Ok(remnants);
 })
 .WithName("GetProfileRemnants")
+.WithOpenApi();
+
+app.MapGet("/api/remnants", async (IProfileService profileService, bool? availableOnly) =>
+{
+    var remnants = await profileService.GetAllRemnantsAsync(availableOnly ?? true);
+    return Results.Ok(remnants);
+})
+.WithName("GetAllRemnants")
+.WithOpenApi();
+
+app.MapGet("/api/remnants/{id}", async (int id, IProfileService profileService) =>
+{
+    var remnant = await profileService.GetRemnantByIdAsync(id);
+    return remnant is not null ? Results.Ok(remnant) : Results.NotFound();
+})
+.WithName("GetRemnant")
+.WithOpenApi();
+
+app.MapPost("/api/profiles/{lotId}/use", async (string lotId, ProfileUsageRequest request, IProfileService profileService) =>
+{
+    try
+    {
+        var usage = await profileService.UseProfileAsync(lotId, request);
+        return Results.Ok(usage);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UseProfile")
+.WithOpenApi();
+
+app.MapPost("/api/remnants/{id}/use", async (int id, RemnantUsageRequest request, IProfileService profileService) =>
+{
+    try
+    {
+        var usage = await profileService.UseRemnantAsync(id, request);
+        return Results.Ok(usage);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UseRemnant")
 .WithOpenApi();
 
 app.MapPost("/api/profiles", async (Profile profile, IProfileService profileService) =>

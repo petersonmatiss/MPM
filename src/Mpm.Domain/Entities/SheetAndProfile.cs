@@ -34,8 +34,10 @@ public class Profile : TenantEntity
     public int? SteelGradeId { get; set; }
     public int? ProfileTypeId { get; set; }
     public string Dimension { get; set; } = string.Empty;
-    public int LengthMm { get; set; }
-    public decimal Weight { get; set; }
+    public int LengthMm { get; set; } // Total length of all pieces (PieceLength * initial quantity)
+    public int PieceLength { get; set; } // Length of each individual piece
+    public int PiecesAvailable { get; set; } // Number of pieces currently available
+    public decimal Weight { get; set; } // Total weight of all pieces
     public string HeatNumber { get; set; } = string.Empty;
     public int? CertificateId { get; set; }
     public DateTime ArrivalDate { get; set; } = DateTime.UtcNow;
@@ -43,7 +45,8 @@ public class Profile : TenantEntity
     public string InvoiceNumber { get; set; } = string.Empty;
     public decimal UnitPrice { get; set; }
     public bool IsReserved { get; set; } = false;
-    public int AvailableLengthMm { get; set; } // Current available length after cuts
+    [Obsolete("Use PiecesAvailable instead. This field is kept for backward compatibility.")]
+    public int AvailableLengthMm { get; set; } // Legacy field - use PiecesAvailable * PieceLength instead
 
     // Navigation properties
     public virtual InvoiceLine? InvoiceLine { get; set; }
@@ -59,8 +62,10 @@ public class ProfileRemnant : TenantEntity
 {
     public int ProfileId { get; set; }
     public string RemnantId { get; set; } = string.Empty; // Generated ID for remnant
-    public int LengthMm { get; set; }
-    public decimal Weight { get; set; }
+    public int LengthMm { get; set; } // Total length of all remnant pieces (PieceLength * PiecesAvailable)
+    public int PieceLength { get; set; } // Length of each individual remnant piece
+    public int PiecesAvailable { get; set; } // Number of remnant pieces available
+    public decimal Weight { get; set; } // Total weight of all remnant pieces
     public bool IsUsable { get; set; } = true;
     public bool IsUsed { get; set; } = false;
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;

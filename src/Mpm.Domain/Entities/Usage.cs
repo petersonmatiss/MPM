@@ -29,10 +29,11 @@ public class ProfileUsage : TenantEntity
     public int? ManufacturingOrderId { get; set; }
     public DateTime UsageDate { get; set; } = DateTime.UtcNow;
     public string UsedBy { get; set; } = string.Empty;
-    public int UsedLengthMm { get; set; }
-    public int PiecesUsed { get; set; } = 1;
+    public int UsedPieceLength { get; set; } // Length of each piece that was used
+    public int PiecesUsed { get; set; } = 1; // Number of pieces used
     public bool RemnantFlag { get; set; } = false;
-    public int? RemnantLengthMm { get; set; }
+    public int? RemnantPieceLength { get; set; } // Length of each remnant piece created
+    public int? RemnantPiecesCreated { get; set; } // Number of remnant pieces created
     public string Notes { get; set; } = string.Empty;
 
     // Navigation properties

@@ -1,0 +1,117 @@
+@inject IProfileService ProfileService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 500px; overflow-y: scroll">
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    Using Remnant: <strong>@Remnant?.RemnantId</strong><br/>
+                    Available: <strong>@Remnant?.PiecesAvailable pieces</strong> of <strong>@Remnant?.PieceLength mm</strong> each<br/>
+                    Original Profile: <strong>@Remnant?.Profile?.LotId</strong>
+                </MudAlert>
+                
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Used By" @bind-Value="request.UsedBy" 
+                                     Required="true" RequiredError="Used by is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="int" Label="Pieces Used" @bind-Value="request.PiecesUsed" 
+                                        Required="true" RequiredError="Number of pieces is required"
+                                        Min="1" Max="@(Remnant?.PiecesAvailable ?? 999)" 
+                                        HelperText="@($"Max: {Remnant?.PiecesAvailable} pieces")" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="int" Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
+                                        Required="true" RequiredError="Used piece length is required"
+                                        Min="1" Max="@(Remnant?.PieceLength ?? 999999)"
+                                        HelperText="@($"Enter a length between 1 and {Remnant?.PieceLength} mm")" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Project ID" @bind-Value="request.ProjectId" 
+                                        T="int?" Min="0" HelperText="Optional project association" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField Label="Manufacturing Order ID" @bind-Value="request.ManufacturingOrderId" 
+                                        T="int?" Min="0" HelperText="Optional manufacturing order" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Notes" @bind-Value="request.Notes" Lines="3" 
+                                     HelperText="Optional notes about this usage" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6" Class="mt-4 mb-2">New Remnant Creation (Optional)</MudText>
+                        <MudCheckBox @bind-Value="createNewRemnant" Label="Create new remnants from used pieces" />
+                    </MudItem>
+                    
+                    @if (createNewRemnant)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudNumericField Label="New Remnant Piece Length (mm)" @bind-Value="request.NewRemnantPieceLength" 
+                                            T="int?" Min="1" HelperText="Length of each new remnant piece" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField Label="New Remnant Pieces Created" @bind-Value="request.NewRemnantPiecesCreated" 
+                                            T="int?" Min="1" HelperText="Number of new remnant pieces to create" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="!isFormValid">
+            Use Remnant
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ProfileRemnant? Remnant { get; set; }
+
+    private MudForm form = default!;
+    private bool isFormValid;
+    private string[] errors = { };
+    private RemnantUsageRequest request = new();
+    private bool createNewRemnant = false;
+
+    protected override void OnInitialized()
+    {
+        if (Remnant != null)
+        {
+            request.UsedPieceLength = Remnant.PieceLength; // Default to the remnant's piece length
+            request.PiecesUsed = 1; // Default to using 1 piece
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid && Remnant != null)
+        {
+            try
+            {
+                // Clear new remnant fields if not creating new remnants
+                if (!createNewRemnant)
+                {
+                    request.NewRemnantPieceLength = null;
+                    request.NewRemnantPiecesCreated = null;
+                }
+
+                await ProfileService.UseRemnantAsync(Remnant.Id, request);
+                MudDialog.Close(DialogResult.Ok(request));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error using remnant: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
