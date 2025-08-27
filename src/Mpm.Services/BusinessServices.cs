@@ -28,7 +28,11 @@ public interface IInventoryService
     Task<IEnumerable<InventoryLot>> GetAllLotsAsync();
     Task<InventoryLot?> GetLotByIdAsync(int id);
     Task<IEnumerable<InventoryLot>> GetAvailableLotsAsync();
+    Task<IEnumerable<InventoryLot>> GetReservedLotsAsync();
     Task<MaterialReservation> ReserveMaterialAsync(int lotId, decimal quantity, int? projectId = null, int? workOrderId = null);
+    Task UnreserveMaterialAsync(int lotId);
+    Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType);
+    Task<IEnumerable<InventoryLot>> SearchLotsAsync(string searchTerm);
 }
 
 public interface IQuotationService
@@ -212,6 +216,58 @@ public class InventoryService : IInventoryService
 
         await _context.SaveChangesAsync();
         return reservation;
+    }
+
+    public async Task<IEnumerable<InventoryLot>> GetReservedLotsAsync()
+    {
+        return await _context.InventoryLots
+            .Where(i => i.IsReserved)
+            .Include(i => i.Material)
+            .Include(i => i.Project)
+            .OrderBy(i => i.ArrivalDate)
+            .ToListAsync();
+    }
+
+    public async Task UnreserveMaterialAsync(int lotId)
+    {
+        var lot = await _context.InventoryLots.FindAsync(lotId);
+        if (lot == null) throw new ArgumentException("Lot not found");
+
+        // Remove all reservations for this lot
+        var reservations = await _context.MaterialReservations
+            .Where(r => r.InventoryLotId == lotId)
+            .ToListAsync();
+
+        _context.MaterialReservations.RemoveRange(reservations);
+        lot.IsReserved = false;
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType)
+    {
+        return await _context.InventoryLots
+            .Where(i => i.ProfileType.Contains(profileType))
+            .Include(i => i.Material)
+            .Include(i => i.Project)
+            .OrderBy(i => i.ArrivalDate)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<InventoryLot>> SearchLotsAsync(string searchTerm)
+    {
+        return await _context.InventoryLots
+            .Where(i => i.HeatNumber.Contains(searchTerm) ||
+                       i.ProfileType.Contains(searchTerm) ||
+                       i.Location.Contains(searchTerm) ||
+                       i.SupplierName.Contains(searchTerm) ||
+                       i.InvoiceNumber.Contains(searchTerm) ||
+                       i.Material.Grade.Contains(searchTerm) ||
+                       i.Material.Description.Contains(searchTerm))
+            .Include(i => i.Material)
+            .Include(i => i.Project)
+            .OrderBy(i => i.ArrivalDate)
+            .ToListAsync();
     }
 }
 

@@ -1,0 +1,301 @@
+@page "/inventory"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IInventoryService InventoryService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Inventory - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Inventory Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Filters and Search Section -->
+        <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by heat number, type, location, supplier..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                             Style="min-width: 300px;" />
+                
+                <MudSelect @bind-Value="statusFilter" Label="Status Filter" Class="mt-0" Style="min-width: 150px;">
+                    <MudSelectItem Value="@("all")">All Items</MudSelectItem>
+                    <MudSelectItem Value="@("available")">Available</MudSelectItem>
+                    <MudSelectItem Value="@("reserved")">Reserved</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField @bind-Value="typeFilter" Placeholder="Filter by type..." 
+                             Label="Type Filter" Class="mt-0" Style="min-width: 150px;" />
+            </div>
+            
+            <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
+                          OnClick="LoadInventory" Class="ml-auto">
+                    Refresh
+                </MudButton>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="d-flex gap-4 mb-4 flex-wrap">
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Inventory" Color="Color.Primary" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredInventory.Count()</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Total Items</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredInventory.Count(i => !i.IsReserved)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Available</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Lock" Color="Color.Warning" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredInventory.Count(i => i.IsReserved)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Reserved</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Scale" Color="Color.Info" />
+                        <div>
+                            <MudText Variant="Variant.h6">@($"{filteredInventory.Sum(i => i.Quantity):F1} kg")</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Total Weight</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </div>
+
+        <!-- Inventory Data Grid -->
+        <MudDataGrid Items="@filteredInventory" Filterable="true" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="20" Height="600px">
+            <Columns>
+                <!-- Status Indicator -->
+                <TemplateColumn Title="Status" Sortable="false" Filterable="false" CellClass="text-center">
+                    <CellTemplate>
+                        <MudIcon Icon="@(context.Item!.IsReserved ? Icons.Material.Filled.Lock : Icons.Material.Filled.CheckCircle)" 
+                                Color="@(context.Item.IsReserved ? Color.Warning : Color.Success)" 
+                                Size="Size.Small" />
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Material Information -->
+                <PropertyColumn Property="x => x.Material.Grade" Title="Grade" />
+                <PropertyColumn Property="x => x.Material.Description" Title="Description" />
+                <PropertyColumn Property="x => x.ProfileType" Title="Type" />
+                <PropertyColumn Property="x => x.HeatNumber" Title="Heat Number" />
+
+                <!-- Quantities and Dimensions -->
+                <PropertyColumn Property="x => x.Quantity" Title="Quantity (kg)" Format="F2" />
+                <PropertyColumn Property="x => x.Length" Title="Length (mm)" Format="F0">
+                    <CellTemplate>
+                        @(context.Item!.Length?.ToString("F0") ?? "N/A")
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <!-- Location and Supplier -->
+                <PropertyColumn Property="x => x.Location" Title="Location" />
+                <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+
+                <!-- Dates and Pricing -->
+                <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
+                <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="C2" />
+
+                <!-- Status Display -->
+                <TemplateColumn Title="Availability" Sortable="true" SortBy="@(x => x.IsReserved)">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.IsReserved ? Color.Warning : Color.Success)" 
+                                Size="Size.Small" Icon="@(context.Item.IsReserved ? Icons.Material.Filled.Lock : Icons.Material.Filled.CheckCircle)">
+                            @(context.Item.IsReserved ? "Reserved" : "Available")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Project Assignment -->
+                <TemplateColumn Title="Project">
+                    <CellTemplate>
+                        @if (context.Item!.Project != null)
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Info">
+                                @context.Item.Project.Name
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary" Variant="Variant.body2">N/A</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Certificate Status -->
+                <TemplateColumn Title="Certificate" Sortable="false">
+                    <CellTemplate>
+                        @if (context.Item!.CertificateId.HasValue)
+                        {
+                            <MudIcon Icon="Icons.Material.Filled.Verified" Color="Color.Success" Size="Size.Small" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Actions -->
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        @if (!context.Item!.IsReserved)
+                        {
+                            <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Lock" 
+                                          Color="Color.Primary" 
+                                          OnClick="@(() => OpenReservationDialog(context.Item, true))"
+                                          Title="Reserve Material" />
+                        }
+                        else
+                        {
+                            <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.LockOpen" 
+                                          Color="Color.Warning" 
+                                          OnClick="@(() => OpenReservationDialog(context.Item, false))"
+                                          Title="Unreserve Material" />
+                        }
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewDetails(context.Item))"
+                                      Title="View Details" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<InventoryLot> inventory = new();
+    private bool loading = true;
+    private string searchString = string.Empty;
+    private string statusFilter = "all";
+    private string typeFilter = string.Empty;
+
+    private IEnumerable<InventoryLot> filteredInventory => ApplyFilters();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInventory();
+    }
+
+    private async Task LoadInventory()
+    {
+        loading = true;
+        try
+        {
+            inventory = (await InventoryService.GetAllLotsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading inventory: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<InventoryLot> ApplyFilters()
+    {
+        var filtered = inventory.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            filtered = filtered.Where(i =>
+                (i.HeatNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.ProfileType?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Location?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.SupplierName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.InvoiceNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Material?.Grade?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Material?.Description?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Apply status filter
+        filtered = statusFilter switch
+        {
+            "available" => filtered.Where(i => !i.IsReserved),
+            "reserved" => filtered.Where(i => i.IsReserved),
+            _ => filtered
+        };
+
+        // Apply type filter
+        if (!string.IsNullOrWhiteSpace(typeFilter))
+        {
+            filtered = filtered.Where(i => i.ProfileType?.Contains(typeFilter, StringComparison.OrdinalIgnoreCase) ?? false);
+        }
+
+        return filtered.OrderBy(i => i.ArrivalDate);
+    }
+
+    private async Task OpenReservationDialog(InventoryLot lot, bool isReserve)
+    {
+        var parameters = new DialogParameters<InventoryReservationDialog>
+        {
+            { x => x.InventoryLot, lot },
+            { x => x.IsReserve, isReserve }
+        };
+
+        var dialog = await DialogService.ShowAsync<InventoryReservationDialog>(
+            isReserve ? "Reserve Material" : "Unreserve Material", 
+            parameters);
+        
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadInventory();
+        }
+    }
+
+    private void ViewDetails(InventoryLot lot)
+    {
+        var message = $"Material: {lot.Material?.Grade} - {lot.Material?.Description}\n" +
+                     $"Heat Number: {lot.HeatNumber}\n" +
+                     $"Profile Type: {lot.ProfileType}\n" +
+                     $"Quantity: {lot.Quantity:F2} kg\n" +
+                     $"Length: {lot.Length?.ToString("F0") ?? "N/A"} mm\n" +
+                     $"Location: {lot.Location}\n" +
+                     $"Supplier: {lot.SupplierName}\n" +
+                     $"Invoice: {lot.InvoiceNumber}\n" +
+                     $"Arrival Date: {lot.ArrivalDate:yyyy-MM-dd}\n" +
+                     $"Unit Price: {lot.UnitPrice:C2}\n" +
+                     $"Status: {(lot.IsReserved ? "Reserved" : "Available")}\n" +
+                     $"Project: {lot.Project?.Name ?? "N/A"}\n" +
+                     $"Certificate: {(lot.CertificateId.HasValue ? "Available" : "Not Available")}";
+
+        Snackbar.Add(message, Severity.Info, config =>
+        {
+            config.RequireInteraction = true;
+            config.ShowCloseIcon = true;
+            config.VisibleStateDuration = 10000;
+        });
+    }
+}
