@@ -348,12 +348,7 @@ public class ProfileService : IProfileService
             .FirstAsync(u => u.Id == usage.Id);
     }
 
-    private decimal CalculateRemnantWeight(Profile profile, int remnantLengthMm)
-    {
-        // Calculate proportional weight based on the remnant length
-        if (profile.LengthMm > 0)
-        {
-            return profile.Weight * remnantLengthMm / profile.LengthMm;
+            return profile.Weight * (decimal)remnantLengthMm / profile.LengthMm;
         }
         return 0;
     }
