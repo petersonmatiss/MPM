@@ -26,7 +26,7 @@
                         <MudNumericField Label="Used Piece Length (mm)" @bind-Value="request.UsedPieceLength" 
                                         Required="true" RequiredError="Used piece length is required"
                                         Min="1" Max="@Remnant?.PieceLength"
-                                        HelperText="@($"Must be {Remnant?.PieceLength} mm for this remnant")" />
+                                        HelperText="@($"Enter a length between 1 and {Remnant?.PieceLength} mm")" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudNumericField Label="Project ID" @bind-Value="request.ProjectId" 
