@@ -1,0 +1,245 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IMaterialService MaterialService
+@inject IInventoryService InventoryService
+@inject ISupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 600px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">Quick Add Inventory</MudText>
+                        <MudText Variant="Variant.body2" Color="Color.Secondary">Add new inventory item to the system</MudText>
+                    </MudItem>
+
+                    <!-- Material Type -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="materialType" Label="Material Type" Required="true"
+                                  RequiredError="Material type is required">
+                            <MudSelectItem Value="@("Steel Sheets")">Steel Sheets</MudSelectItem>
+                            <MudSelectItem Value="@("Steel Profiles")">Steel Profiles</MudSelectItem>
+                            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Steel Grade -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="selectedMaterialId" Label="Steel Grade" Required="true"
+                                  RequiredError="Steel grade is required" T="int?" Clearable="true">
+                            @foreach (var material in materials)
+                            {
+                                <MudSelectItem Value="material.Id">@material.Grade - @material.Description</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Quantity -->
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="quantity" Label="Quantity" Required="true"
+                                       RequiredError="Quantity is required" Min="0.01m" 
+                                       Adornment="Adornment.End" AdornmentText="kg" T="decimal" />
+                    </MudItem>
+
+                    <!-- Heat Number -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="heatNumber" Label="Heat Number" Required="true"
+                                     RequiredError="Heat number is required" />
+                    </MudItem>
+
+                    <!-- Dimensions -->
+                    <MudItem xs="12" md="4">
+                        <MudNumericField @bind-Value="thicknessMm" Label="Thickness (mm)" Min="0.01m" T="decimal?"
+                                       Placeholder="e.g., 8" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudNumericField @bind-Value="lengthMm" Label="Length (mm)" Min="1m" T="decimal?"
+                                       Placeholder="e.g., 6000" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudNumericField @bind-Value="widthMm" Label="Width (mm)" Min="1m" T="decimal?"
+                                       Placeholder="e.g., 2000" />
+                    </MudItem>
+
+                    <!-- Storage Location -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="storageLocation" Label="Storage Location" Required="true"
+                                  RequiredError="Storage location is required">
+                            <MudSelectItem Value="@("A1-A5")">A1-A5</MudSelectItem>
+                            <MudSelectItem Value="@("B1-B5")">B1-B5</MudSelectItem>
+                            <MudSelectItem Value="@("C1-P3-B2")">C1-P3-B2</MudSelectItem>
+                            <MudSelectItem Value="@("R1-REM-S1")">R1-REM-S1</MudSelectItem>
+                            <MudSelectItem Value="@("R2-REM-S3")">R2-REM-S3</MudSelectItem>
+                            <MudSelectItem Value="@("Outdoor")">Outdoor</MudSelectItem>
+                            <MudSelectItem Value="@("Warehouse")">Warehouse</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Supplier -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="selectedSupplierId" Label="Supplier" T="int?" Clearable="true">
+                            @foreach (var supplier in suppliers)
+                            {
+                                <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Invoice Reference -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="invoiceReference" Label="Invoice Reference" 
+                                     Placeholder="Invoice number" />
+                    </MudItem>
+
+                    <!-- Unit Price -->
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="unitPrice" Label="Unit Price" Min="0m" Format="C2"
+                                       Adornment="Adornment.Start" AdornmentText="€" T="decimal" />
+                    </MudItem>
+
+                    <!-- Notes -->
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="notes" Label="Notes" Lines="3" 
+                                     Placeholder="Additional notes" />
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                   StartIcon="Icons.Material.Filled.Add"
+                   Disabled="@(!isFormValid)">
+            Add to Inventory
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+
+    // Form fields
+    private string materialType = "Steel Sheets";
+    private int? selectedMaterialId;
+    private decimal quantity = 0;
+    private string heatNumber = string.Empty;
+    private decimal? thicknessMm;
+    private decimal? lengthMm;
+    private decimal? widthMm;
+    private string storageLocation = string.Empty;
+    private int? selectedSupplierId;
+    private string invoiceReference = string.Empty;
+    private decimal unitPrice = 0;
+    private string notes = string.Empty;
+
+    // Data lists
+    private List<Material> materials = new();
+    private List<Supplier> suppliers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            materials = (await MaterialService.GetAllAsync()).ToList();
+            suppliers = (await SupplierService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                // Find the selected material
+                if (!selectedMaterialId.HasValue)
+                {
+                    Snackbar.Add("Please select a material", Severity.Error);
+                    return;
+                }
+
+                var selectedMaterial = materials.FirstOrDefault(m => m.Id == selectedMaterialId.Value);
+                if (selectedMaterial == null)
+                {
+                    Snackbar.Add("Please select a valid material", Severity.Error);
+                    return;
+                }
+
+                // Find supplier name if selected
+                var supplierName = selectedSupplierId.HasValue 
+                    ? suppliers.FirstOrDefault(s => s.Id == selectedSupplierId)?.Name ?? string.Empty
+                    : string.Empty;
+
+                // Create dimension string based on material type and inputs
+                var dimensionString = BuildDimensionString();
+
+                // Create the inventory lot
+                var inventoryLot = new InventoryLot
+                {
+                    MaterialId = selectedMaterialId.Value,
+                    Quantity = quantity,
+                    Length = lengthMm,
+                    HeatNumber = heatNumber,
+                    ProfileType = materialType,
+                    Location = storageLocation,
+                    SupplierName = supplierName,
+                    InvoiceNumber = invoiceReference,
+                    UnitPrice = unitPrice,
+                    ArrivalDate = DateTime.UtcNow,
+                    IsReserved = false
+                };
+
+                await InventoryService.CreateLotAsync(inventoryLot);
+                
+                Snackbar.Add($"Successfully added {quantity:F2} kg of {selectedMaterial.Grade} to inventory", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(inventoryLot));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error adding material to inventory: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private string BuildDimensionString()
+    {
+        var dimensions = new List<string>();
+        
+        if (thicknessMm.HasValue)
+            dimensions.Add($"{thicknessMm.Value:F0}mm");
+            
+        if (widthMm.HasValue && lengthMm.HasValue)
+            dimensions.Add($"{widthMm.Value:F0}x{lengthMm.Value:F0}mm");
+        else if (lengthMm.HasValue)
+            dimensions.Add($"{lengthMm.Value:F0}mm length");
+        else if (widthMm.HasValue)
+            dimensions.Add($"{widthMm.Value:F0}mm width");
+
+        return dimensions.Any() ? string.Join(" × ", dimensions) : string.Empty;
+    }
+}

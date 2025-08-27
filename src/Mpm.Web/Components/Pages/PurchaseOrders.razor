@@ -1,0 +1,283 @@
+@page "/purchase-orders"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPurchaseOrderService PurchaseOrderService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Purchase Orders - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Purchase Order Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Header Actions -->
+        <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by PO number, supplier..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                             Style="min-width: 300px;" />
+                
+                <MudSelect @bind-Value="statusFilter" Label="Status Filter" Class="mt-0" Style="min-width: 150px;">
+                    <MudSelectItem Value="@("all")">All Orders</MudSelectItem>
+                    <MudSelectItem Value="@("confirmed")">Confirmed</MudSelectItem>
+                    <MudSelectItem Value="@("pending")">Pending</MudSelectItem>
+                </MudSelect>
+            </div>
+            
+            <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                          StartIcon="Icons.Material.Filled.Add" 
+                          OnClick="OpenCreatePurchaseOrderDialog">
+                    Create Purchase Order
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
+                          OnClick="LoadPurchaseOrders">
+                    Refresh
+                </MudButton>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="d-flex gap-4 mb-4 flex-wrap">
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Receipt" Color="Color.Primary" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count()</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Total Orders</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => po.IsConfirmed)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Confirmed</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Schedule" Color="Color.Warning" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => !po.IsConfirmed)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Pending</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </div>
+
+        <!-- Purchase Orders Data Grid -->
+        <MudDataGrid Items="@filteredPurchaseOrders" Filterable="true" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="20" Height="600px">
+            <Columns>
+                <!-- Status Indicator -->
+                <TemplateColumn Title="Status" Sortable="false" Filterable="false" CellClass="text-center">
+                    <CellTemplate>
+                        <MudIcon Icon="@(context.Item!.IsConfirmed ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)" 
+                                Color="@(context.Item.IsConfirmed ? Color.Success : Color.Warning)" 
+                                Size="Size.Small" />
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- PO Number -->
+                <PropertyColumn Property="x => x.Number" Title="PO Number" />
+
+                <!-- Supplier -->
+                <PropertyColumn Property="x => x.Supplier.Name" Title="Supplier" />
+
+                <!-- Order Date -->
+                <PropertyColumn Property="x => x.OrderDate" Title="Order Date" Format="yyyy-MM-dd" />
+
+                <!-- Delivery Date -->
+                <TemplateColumn Title="Delivery Date" Sortable="true" SortBy="@(x => x.DeliveryDate)">
+                    <CellTemplate>
+                        @(context.Item!.DeliveryDate?.ToString("yyyy-MM-dd") ?? "Not set")
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Total Lines -->
+                <TemplateColumn Title="Lines" Sortable="true" SortBy="@(x => x.Lines.Count)">
+                    <CellTemplate>
+                        @context.Item!.Lines.Count line(s)
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Currency -->
+                <PropertyColumn Property="x => x.Currency" Title="Currency" />
+
+                <!-- Status -->
+                <TemplateColumn Title="Order Status" Sortable="true" SortBy="@(x => x.IsConfirmed)">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.IsConfirmed ? Color.Success : Color.Warning)" 
+                                Size="Size.Small" Icon="@(context.Item.IsConfirmed ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)">
+                            @(context.Item.IsConfirmed ? "Confirmed" : "Pending")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Project -->
+                <TemplateColumn Title="Project">
+                    <CellTemplate>
+                        @if (context.Item!.Project != null)
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Info">
+                                @context.Item.Project.Name
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary" Variant="Variant.body2">N/A</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Actions -->
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false" Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewPurchaseOrder(context.Item))"
+                                      Title="View Details" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                      OnClick="@(() => EditPurchaseOrder(context.Item))"
+                                      Title="Edit" />
+                        @if (!context.Item!.IsConfirmed)
+                        {
+                            <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Check" 
+                                          Color="Color.Success"
+                                          OnClick="@(() => ConfirmPurchaseOrder(context.Item))"
+                                          Title="Confirm Order" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<PurchaseOrder> purchaseOrders = new();
+    private bool loading = true;
+    private string searchString = string.Empty;
+    private string statusFilter = "all";
+
+    private IEnumerable<PurchaseOrder> filteredPurchaseOrders => ApplyFilters();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPurchaseOrders();
+    }
+
+    private async Task LoadPurchaseOrders()
+    {
+        loading = true;
+        try
+        {
+            purchaseOrders = (await PurchaseOrderService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading purchase orders: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<PurchaseOrder> ApplyFilters()
+    {
+        var filtered = purchaseOrders.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            filtered = filtered.Where(po =>
+                (po.Number?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (po.Supplier?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (po.Notes?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Apply status filter
+        filtered = statusFilter switch
+        {
+            "confirmed" => filtered.Where(po => po.IsConfirmed),
+            "pending" => filtered.Where(po => !po.IsConfirmed),
+            _ => filtered
+        };
+
+        return filtered.OrderByDescending(po => po.OrderDate);
+    }
+
+    private async Task OpenCreatePurchaseOrderDialog()
+    {
+        var dialog = await DialogService.ShowAsync<PurchaseOrderDialog>("Create Purchase Order");
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadPurchaseOrders();
+        }
+    }
+
+    private async Task EditPurchaseOrder(PurchaseOrder purchaseOrder)
+    {
+        var parameters = new DialogParameters<PurchaseOrderDialog>
+        {
+            { x => x.PurchaseOrder, purchaseOrder }
+        };
+
+        var dialog = await DialogService.ShowAsync<PurchaseOrderDialog>("Edit Purchase Order", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadPurchaseOrders();
+        }
+    }
+
+    private async Task ConfirmPurchaseOrder(PurchaseOrder purchaseOrder)
+    {
+        try
+        {
+            await PurchaseOrderService.ConfirmOrderAsync(purchaseOrder.Id);
+            Snackbar.Add($"Purchase Order {purchaseOrder.Number} confirmed successfully", Severity.Success);
+            await LoadPurchaseOrders();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error confirming purchase order: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ViewPurchaseOrder(PurchaseOrder purchaseOrder)
+    {
+        var message = $"Purchase Order: {purchaseOrder.Number}\n" +
+                     $"Supplier: {purchaseOrder.Supplier?.Name}\n" +
+                     $"Order Date: {purchaseOrder.OrderDate:yyyy-MM-dd}\n" +
+                     $"Delivery Date: {purchaseOrder.DeliveryDate?.ToString("yyyy-MM-dd") ?? "Not set"}\n" +
+                     $"Currency: {purchaseOrder.Currency}\n" +
+                     $"Status: {(purchaseOrder.IsConfirmed ? "Confirmed" : "Pending")}\n" +
+                     $"Lines: {purchaseOrder.Lines.Count}\n" +
+                     $"Project: {purchaseOrder.Project?.Name ?? "N/A"}\n" +
+                     $"Notes: {purchaseOrder.Notes}";
+
+        Snackbar.Add(message, Severity.Info, config =>
+        {
+            config.RequireInteraction = true;
+            config.ShowCloseIcon = true;
+            config.VisibleStateDuration = 15000;
+        });
+    }
+}
