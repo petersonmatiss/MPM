@@ -144,7 +144,7 @@
                 <TemplateColumn Title="Stock Status" Sortable="true" SortBy="@(x => x.IsReserved)">
                     <CellTemplate>
                         @{
-                            var isLowStock = context.Item!.Quantity < 50; // Consider less than 50kg as low stock
+                            var isLowStock = context.Item!.Quantity < LowStockThreshold; // Consider less than 50kg as low stock
                             var chipColor = context.Item.IsReserved ? Color.Warning : (isLowStock ? Color.Error : Color.Success);
                             var chipIcon = context.Item.IsReserved ? Icons.Material.Filled.Lock : 
                                           (isLowStock ? Icons.Material.Filled.Warning : Icons.Material.Filled.CheckCircle);
