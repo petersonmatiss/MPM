@@ -233,6 +233,7 @@
     private string searchString = string.Empty;
     private string statusFilter = "all";
     private string typeFilter = string.Empty;
+    private const decimal LowStockThreshold = 50.0m; // Consider less than 50kg/pieces as low stock
 
     private IEnumerable<InventoryLot> filteredInventory => ApplyFilters();
 

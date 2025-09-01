@@ -382,6 +382,7 @@
                 }
 
                 // Find supplier name if selected
+                var supplierName = selectedSupplierId.HasValue
                     ? suppliers.FirstOrDefault(s => s.Id == selectedSupplierId.Value)?.Name ?? string.Empty
                     : string.Empty;
 
