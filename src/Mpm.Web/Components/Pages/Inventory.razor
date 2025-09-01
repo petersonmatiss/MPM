@@ -4,6 +4,8 @@
 @inject IInventoryService InventoryService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IMaterialService MaterialService
+@inject ISupplierService SupplierService
 
 <PageTitle>Inventory - MPM</PageTitle>
 
@@ -30,8 +32,13 @@
             </div>
             
             <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                          StartIcon="Icons.Material.Filled.Add" 
+                          OnClick="OpenAddMaterialDialog">
+                    Add Material
+                </MudButton>
                 <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
-                          OnClick="LoadInventory" Class="ml-auto">
+                          OnClick="LoadInventory">
                     Refresh
                 </MudButton>
             </div>
@@ -101,19 +108,29 @@
                     </CellTemplate>
                 </TemplateColumn>
 
+                <!-- ID Column -->
+                <PropertyColumn Property="x => x.Id" Title="ID" />
+
                 <!-- Material Information -->
                 <PropertyColumn Property="x => x.Material.Grade" Title="Grade" />
-                <PropertyColumn Property="x => x.Material.Description" Title="Description" />
+                <TemplateColumn Title="Dimensions" Sortable="true" SortBy="@(x => x.Material.Dimension)">
+                    <CellTemplate>
+                        @{
+                            var dimensions = new List<string>();
+                            if (!string.IsNullOrEmpty(context.Item!.Material?.Dimension))
+                                dimensions.Add(context.Item.Material.Dimension);
+                            if (context.Item.Length.HasValue)
+                                dimensions.Add($"{context.Item.Length.Value:F0}mm length");
+                            var dimensionText = dimensions.Any() ? string.Join(" × ", dimensions) : "N/A";
+                        }
+                        <span>@dimensionText</span>
+                    </CellTemplate>
+                </TemplateColumn>
                 <PropertyColumn Property="x => x.ProfileType" Title="Type" />
                 <PropertyColumn Property="x => x.HeatNumber" Title="Heat Number" />
 
-                <!-- Quantities and Dimensions -->
+                <!-- Quantities -->
                 <PropertyColumn Property="x => x.Quantity" Title="Quantity (kg)" Format="F2" />
-                <PropertyColumn Property="x => x.Length" Title="Length (mm)" Format="F0">
-                    <CellTemplate>
-                        @(context.Item!.Length?.ToString("F0") ?? "N/A")
-                    </CellTemplate>
-                </PropertyColumn>
 
                 <!-- Location and Supplier -->
                 <PropertyColumn Property="x => x.Location" Title="Location" />
@@ -123,13 +140,33 @@
                 <PropertyColumn Property="x => x.ArrivalDate" Title="Arrival Date" Format="yyyy-MM-dd" />
                 <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="C2" />
 
-                <!-- Status Display -->
-                <TemplateColumn Title="Availability" Sortable="true" SortBy="@(x => x.IsReserved)">
+                <!-- Stock Status Display -->
+                <TemplateColumn Title="Stock Status" Sortable="true" SortBy="@(x => x.IsReserved)">
                     <CellTemplate>
-                        <MudChip Color="@(context.Item!.IsReserved ? Color.Warning : Color.Success)" 
-                                Size="Size.Small" Icon="@(context.Item.IsReserved ? Icons.Material.Filled.Lock : Icons.Material.Filled.CheckCircle)">
-                            @(context.Item.IsReserved ? "Reserved" : "Available")
+                        @{
+                            var isLowStock = context.Item!.Quantity < LowStockThreshold; // Consider less than 50kg as low stock
+                            var chipColor = context.Item.IsReserved ? Color.Warning : (isLowStock ? Color.Error : Color.Success);
+                            var chipIcon = context.Item.IsReserved ? Icons.Material.Filled.Lock : 
+                                          (isLowStock ? Icons.Material.Filled.Warning : Icons.Material.Filled.CheckCircle);
+                            var statusText = context.Item.IsReserved ? "Reserved" : (isLowStock ? "Low Stock" : "Available");
+                        }
+                        <MudChip Color="@chipColor" Size="Size.Small" Icon="@chipIcon">
+                            @statusText
                         </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Reserved/Available Info -->
+                <TemplateColumn Title="Reserved/Available" Sortable="true" SortBy="@(x => x.Quantity)">
+                    <CellTemplate>
+                        @if (context.Item!.IsReserved)
+                        {
+                            <span class="text-warning">@($"Reserved: {context.Item.Quantity:F1} kg")</span>
+                        }
+                        else
+                        {
+                            <span class="text-success">@($"Available: {context.Item.Quantity:F1} kg")</span>
+                        }
                     </CellTemplate>
                 </TemplateColumn>
 
@@ -196,6 +233,7 @@
     private string searchString = string.Empty;
     private string statusFilter = "all";
     private string typeFilter = string.Empty;
+    private const decimal LowStockThreshold = 50.0m; // Consider less than 50kg/pieces as low stock
 
     private IEnumerable<InventoryLot> filteredInventory => ApplyFilters();
 
@@ -253,6 +291,17 @@
         }
 
         return filtered.OrderBy(i => i.ArrivalDate);
+    }
+
+    private async Task OpenAddMaterialDialog()
+    {
+        var dialog = await DialogService.ShowAsync<MaterialAddDialog>("Add Material");
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadInventory();
+        }
     }
 
     private async Task OpenReservationDialog(InventoryLot lot, bool isReserve)
