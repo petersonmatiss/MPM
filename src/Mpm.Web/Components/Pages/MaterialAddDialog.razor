@@ -339,9 +339,14 @@
         };
     }
 
+    private static readonly HashSet<string> StandardProfileTypes = new()
+    {
+        "HEB", "HEA", "IPE", "UPN", "UPE", "HEM", "IPN"
+    };
+
     private bool IsStandardProfile()
     {
-        return profileType is "HEB" or "HEA" or "IPE" or "UPN" or "UPE" or "HEM" or "IPN";
+        return StandardProfileTypes.Contains(profileType);
     }
 
     private string[] GetStandardProfileSizes()
