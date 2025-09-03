@@ -1,0 +1,137 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPriceRequestService PriceRequestService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Variant="Variant.h6" Class="mb-3">
+                        Send Price Request: @PriceRequest?.Number
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudText Variant="Variant.body1" Class="mb-3">
+                        Select suppliers to send this price request to:
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    @if (Suppliers?.Any() == true)
+                    {
+                        <MudGrid>
+                            @foreach (var supplier in Suppliers.Where(s => s.IsActive && !string.IsNullOrEmpty(s.Email)))
+                            {
+                                <MudItem xs="12" md="6">
+                                    <MudCard Elevation="1" Class="pa-3">
+                                        <div class="d-flex align-center gap-3">
+                                            <MudCheckBox @bind-Value="@selectedSuppliers[supplier.Id]" 
+                                                        T="bool"
+                                                        Color="Color.Primary" />
+                                            <div class="flex-grow-1">
+                                                <MudText Variant="Variant.subtitle1">@supplier.Name</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">@supplier.Email</MudText>
+                                                @if (!string.IsNullOrEmpty(supplier.VatNumber))
+                                                {
+                                                    <MudText Variant="Variant.caption" Color="Color.Secondary">VAT: @supplier.VatNumber</MudText>
+                                                }
+                                            </div>
+                                        </div>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning">
+                            No active suppliers with email addresses found. Please add suppliers with valid email addresses first.
+                        </MudAlert>
+                    }
+                </MudItem>
+
+                @if (selectedSuppliers.Any(s => s.Value))
+                {
+                    <MudItem xs="12">
+                        <MudDivider Class="my-4" />
+                        <MudText Variant="Variant.subtitle1" Class="mb-3">Summary</MudText>
+                        <MudAlert Severity="Severity.Info">
+                            This price request will be sent to <strong>@selectedSuppliers.Count(s => s.Value)</strong> supplier(s).
+                            A PDF will be generated and attached to each email.
+                        </MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                  OnClick="SendPriceRequest" 
+                  Disabled="@(!selectedSuppliers.Any(s => s.Value) || isLoading)"
+                  StartIcon="@(isLoading ? null : Icons.Material.Filled.Send)">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                <span class="ml-2">Sending...</span>
+            }
+            else
+            {
+                <span>Send Price Request</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PriceRequest? PriceRequest { get; set; }
+    [Parameter] public List<Supplier>? Suppliers { get; set; }
+
+    private Dictionary<int, bool> selectedSuppliers = new();
+    private bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        if (Suppliers != null)
+        {
+            selectedSuppliers = Suppliers
+                .Where(s => s.IsActive && !string.IsNullOrEmpty(s.Email))
+                .ToDictionary(s => s.Id, s => false);
+        }
+    }
+
+    private async Task SendPriceRequest()
+    {
+        if (PriceRequest == null || !selectedSuppliers.Any(s => s.Value))
+            return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var supplierIds = selectedSuppliers.Where(s => s.Value).Select(s => s.Key).ToArray();
+            await PriceRequestService.SendToSuppliersAsync(PriceRequest.Id, supplierIds);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending price request: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

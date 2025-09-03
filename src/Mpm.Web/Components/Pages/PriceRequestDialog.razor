@@ -1,0 +1,266 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPriceRequestService PriceRequestService
+@inject IProjectService ProjectService
+@inject IMaterialService MaterialService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 600px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">
+                            @(IsEdit ? "Edit Price Request" : "Create Price Request")
+                        </MudText>
+                    </MudItem>
+
+                    <!-- PR Number -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="priceRequest.Number" Label="PR Number" 
+                                     Disabled="@IsEdit" Placeholder="Auto-generated if empty" />
+                    </MudItem>
+
+                    <!-- Status -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="priceRequest.Status" Label="Status" T="PriceRequestStatus">
+                            <MudSelectItem Value="PriceRequestStatus.Draft">Draft</MudSelectItem>
+                            <MudSelectItem Value="PriceRequestStatus.Sent">Sent</MudSelectItem>
+                            <MudSelectItem Value="PriceRequestStatus.Responded">Responded</MudSelectItem>
+                            <MudSelectItem Value="PriceRequestStatus.Closed">Closed</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Description -->
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="priceRequest.Description" Label="Description" 
+                                     Lines="2" MaxLength="500" />
+                    </MudItem>
+
+                    <!-- Request Date -->
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="requestDate" Label="Request Date" Required="true" />
+                    </MudItem>
+
+                    <!-- Required Date -->
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="requiredDate" Label="Required Date" />
+                    </MudItem>
+
+                    <!-- Project -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="priceRequest.ProjectId" Label="Project" T="int?" Clearable="true">
+                            @foreach (var project in projects)
+                            {
+                                <MudSelectItem Value="project.Id">@project.Name (@project.Code)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Currency -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="priceRequest.Currency" Label="Currency" Required="true">
+                            <MudSelectItem Value="@("EUR")">EUR</MudSelectItem>
+                            <MudSelectItem Value="@("USD")">USD</MudSelectItem>
+                            <MudSelectItem Value="@("GBP")">GBP</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Notes -->
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="priceRequest.Notes" Label="Notes" 
+                                     Lines="3" MaxLength="1000" />
+                    </MudItem>
+
+                    <!-- Line Items -->
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6" Class="mb-3">Requested Items</MudText>
+                        
+                        <div class="d-flex justify-end mb-3">
+                            <MudButton StartIcon="Icons.Material.Filled.Add" Color="Color.Primary" 
+                                      OnClick="AddLine" Size="Size.Small">
+                                Add Item
+                            </MudButton>
+                        </div>
+
+                        @if (priceRequest.Lines.Any())
+                        {
+                            @foreach (var line in priceRequest.Lines.ToList())
+                            {
+                                <MudCard Elevation="1" Class="pa-3 mb-2">
+                                    <MudGrid>
+                                        <MudItem xs="12" md="4">
+                                            <MudSelect @bind-Value="line.MaterialId" Label="Material" Required="true" T="int">
+                                                @foreach (var material in materials)
+                                                {
+                                                    <MudSelectItem Value="material.Id">@material.Grade - @material.Description</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudNumericField @bind-Value="line.Quantity" Label="Quantity" Min="0.01m" T="decimal" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudTextField @bind-Value="line.UnitOfMeasure" Label="Unit" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="3">
+                                            <MudTextField @bind-Value="line.Description" Label="Description" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="1">
+                                            <MudIconButton Icon="Icons.Material.Filled.Delete" 
+                                                          Color="Color.Error" 
+                                                          OnClick="@(() => RemoveLine(line))" />
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            <MudTextField @bind-Value="line.Notes" Label="Notes" Lines="2" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudCard>
+                            }
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info">
+                                No items added yet. Add items to specify what materials you need quotes for.
+                            </MudAlert>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid)">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PriceRequest? PriceRequest { get; set; }
+    [Parameter] public bool IsEdit { get; set; } = false;
+
+    private PriceRequest priceRequest = new();
+    private List<Project> projects = new();
+    private List<Material> materials = new();
+    private MudForm form = null!;
+    private bool isFormValid;
+    private string[] errors = { };
+    private DateTime? requestDate;
+    private DateTime? requiredDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEdit && PriceRequest != null)
+        {
+            priceRequest = new PriceRequest
+            {
+                Id = PriceRequest.Id,
+                Number = PriceRequest.Number,
+                Description = PriceRequest.Description,
+                RequestDate = PriceRequest.RequestDate,
+                RequiredDate = PriceRequest.RequiredDate,
+                Currency = PriceRequest.Currency,
+                Status = PriceRequest.Status,
+                Notes = PriceRequest.Notes,
+                ProjectId = PriceRequest.ProjectId,
+                TenantId = PriceRequest.TenantId,
+                Lines = PriceRequest.Lines.Select(l => new PriceRequestLine
+                {
+                    Id = l.Id,
+                    PriceRequestId = l.PriceRequestId,
+                    MaterialId = l.MaterialId,
+                    Quantity = l.Quantity,
+                    UnitOfMeasure = l.UnitOfMeasure,
+                    Description = l.Description,
+                    Notes = l.Notes,
+                    TenantId = l.TenantId
+                }).ToList()
+            };
+        }
+        else
+        {
+            priceRequest.RequestDate = DateTime.UtcNow;
+        }
+
+        requestDate = priceRequest.RequestDate;
+        requiredDate = priceRequest.RequiredDate;
+
+        await LoadProjects();
+        await LoadMaterials();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            projects = (await ProjectService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading projects: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadMaterials()
+    {
+        try
+        {
+            materials = (await MaterialService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading materials: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddLine()
+    {
+        priceRequest.Lines.Add(new PriceRequestLine
+        {
+            PriceRequestId = priceRequest.Id,
+            Quantity = 1,
+            UnitOfMeasure = "kg",
+            TenantId = priceRequest.TenantId
+        });
+    }
+
+    private void RemoveLine(PriceRequestLine line)
+    {
+        priceRequest.Lines.Remove(line);
+    }
+
+    private async Task Submit()
+    {
+        if (!isFormValid) return;
+
+        try
+        {
+            priceRequest.RequestDate = requestDate ?? DateTime.UtcNow;
+            priceRequest.RequiredDate = requiredDate;
+
+            if (IsEdit)
+            {
+                await PriceRequestService.UpdateAsync(priceRequest);
+            }
+            else
+            {
+                await PriceRequestService.CreateAsync(priceRequest);
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving price request: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

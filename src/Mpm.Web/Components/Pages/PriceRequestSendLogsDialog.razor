@@ -1,0 +1,169 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPriceRequestService PriceRequestService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 600px; overflow-y: scroll">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Variant="Variant.h6" Class="mb-3">
+                        Send History
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    @if (sendLogs.Any())
+                    {
+                        <MudDataGrid Items="@sendLogs" Dense="true" Hover="true">
+                            <Columns>
+                                <PropertyColumn Property="x => x.Supplier.Name" Title="Supplier" />
+                                <PropertyColumn Property="x => x.RecipientEmail" Title="Email" />
+                                <PropertyColumn Property="x => x.SentAt" Title="Sent At" Format="yyyy-MM-dd HH:mm" />
+                                <PropertyColumn Property="x => x.Status" Title="Status">
+                                    <CellTemplate>
+                                        <MudChip Color="@GetSendStatusColor(context.Item.Status)" Size="Size.Small">
+                                            @context.Item.Status.ToString()
+                                        </MudChip>
+                                    </CellTemplate>
+                                </PropertyColumn>
+                                <PropertyColumn Property="x => x.AttachmentHash" Title="Attachment Hash" />
+                                <PropertyColumn Property="x => x.RetryCount" Title="Retries" />
+                                <TemplateColumn Title="Details" Sortable="false">
+                                    <CellTemplate>
+                                        <MudIconButton Icon="Icons.Material.Filled.ExpandMore" 
+                                                      Size="Size.Small"
+                                                      OnClick="@(() => ToggleDetails(context.Item.Id))" />
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+
+                        @foreach (var log in sendLogs.Where(l => expandedLogs.Contains(l.Id)))
+                        {
+                            <MudCard Class="mt-3">
+                                <MudCardContent>
+                                    <MudText Variant="Variant.subtitle1" Class="mb-2">
+                                        Details for @log.Supplier.Name
+                                    </MudText>
+                                    
+                                    <MudGrid>
+                                        <MudItem xs="12" md="6">
+                                            <MudTextField Label="Email Subject" 
+                                                         Value="@log.EmailSubject" 
+                                                         ReadOnly="true" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="6">
+                                            <MudTextField Label="Attachment Hash" 
+                                                         Value="@log.AttachmentHash" 
+                                                         ReadOnly="true" />
+                                        </MudItem>
+                                        @if (!string.IsNullOrEmpty(log.ErrorMessage))
+                                        {
+                                            <MudItem xs="12">
+                                                <MudTextField Label="Error Message" 
+                                                             Value="@log.ErrorMessage" 
+                                                             ReadOnly="true" 
+                                                             Lines="2" />
+                                            </MudItem>
+                                        }
+                                        <MudItem xs="12">
+                                            <MudTextField Label="Email Body" 
+                                                         Value="@log.EmailBody" 
+                                                         ReadOnly="true" 
+                                                         Lines="5" />
+                                        </MudItem>
+                                        @if (log.LastRetryAt.HasValue)
+                                        {
+                                            <MudItem xs="12" md="6">
+                                                <MudTextField Label="Last Retry" 
+                                                             Value="@log.LastRetryAt.Value.ToString("yyyy-MM-dd HH:mm")" 
+                                                             ReadOnly="true" />
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    }
+                    else if (isLoading)
+                    {
+                        <div class="d-flex justify-center">
+                            <MudProgressCircular Indeterminate="true" />
+                        </div>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">
+                            No send history found for this price request.
+                        </MudAlert>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int PriceRequestId { get; set; }
+
+    private List<PriceRequestSend> sendLogs = new();
+    private HashSet<int> expandedLogs = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSendLogs();
+    }
+
+    private async Task LoadSendLogs()
+    {
+        try
+        {
+            isLoading = true;
+            sendLogs = (await PriceRequestService.GetSendLogsAsync(PriceRequestId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading send logs: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private Color GetSendStatusColor(PriceRequestSendStatus status)
+    {
+        return status switch
+        {
+            PriceRequestSendStatus.Pending => Color.Warning,
+            PriceRequestSendStatus.Sent => Color.Success,
+            PriceRequestSendStatus.Failed => Color.Error,
+            PriceRequestSendStatus.Bounced => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private void ToggleDetails(int logId)
+    {
+        if (expandedLogs.Contains(logId))
+        {
+            expandedLogs.Remove(logId);
+        }
+        else
+        {
+            expandedLogs.Add(logId);
+        }
+    }
+
+    private void Close()
+    {
+        MudDialog.Close();
+    }
+}
