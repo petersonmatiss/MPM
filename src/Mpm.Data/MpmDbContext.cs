@@ -56,6 +56,12 @@ public class MpmDbContext : DbContext
     public DbSet<ProfileUsage> ProfileUsages { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    
+    // Procurement entities
+    public DbSet<PriceRequest> PriceRequests { get; set; }
+    public DbSet<PriceRequestLine> PriceRequestLines { get; set; }
+    public DbSet<PriceRequestSupplier> PriceRequestSuppliers { get; set; }
+    public DbSet<PriceRequestQuote> PriceRequestQuotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +106,12 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<TimeLog>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Procurement entities query filters
+        modelBuilder.Entity<PriceRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestSupplier>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestQuote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
 
         // Configure precision for decimal properties
         modelBuilder.Entity<BomItem>()
@@ -442,6 +454,119 @@ public class MpmDbContext : DbContext
             .HasOne(e => e.ProfileRemnant)
             .WithMany(e => e.Usages)
             .HasForeignKey(e => e.ProfileRemnantId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure procurement entities
+        ConfigureProcurementEntities(modelBuilder);
+    }
+
+    private void ConfigureProcurementEntities(ModelBuilder modelBuilder)
+    {
+        // Configure concurrency tokens
+        modelBuilder.Entity<PriceRequest>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestLine>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestSupplier>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestQuote>().Property(e => e.RowVersion).IsRowVersion();
+
+        // Configure string lengths
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Number)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Description)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Notes)
+            .HasMaxLength(1000);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.RequestedBy)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Description)
+            .HasMaxLength(200);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Dimension)
+            .HasMaxLength(100);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<PriceRequestSupplier>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<PriceRequestQuote>()
+            .Property(e => e.Currency)
+            .HasMaxLength(3);
+        modelBuilder.Entity<PriceRequestQuote>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+
+        // Configure decimal precision
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.TotalLength)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<PriceRequestQuote>()
+            .Property(e => e.UnitPrice)
+            .HasPrecision(18, 4);
+
+        // Configure unique indexes
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Number })
+            .IsUnique();
+
+        // Configure performance indexes
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Status, e.RequestDate });
+
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasIndex(e => new { e.TenantId, e.PriceRequestId, e.MaterialType });
+
+        modelBuilder.Entity<PriceRequestSupplier>()
+            .HasIndex(e => new { e.TenantId, e.PriceRequestId, e.SupplierId })
+            .IsUnique();
+
+        modelBuilder.Entity<PriceRequestQuote>()
+            .HasIndex(e => new { e.TenantId, e.PriceRequestLineId, e.SupplierId })
+            .IsUnique();
+
+        // Configure relationships
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.PriceRequest)
+            .WithMany(e => e.Lines)
+            .HasForeignKey(e => e.PriceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.SteelGrade)
+            .WithMany()
+            .HasForeignKey(e => e.SteelGradeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<PriceRequestSupplier>()
+            .HasOne(e => e.PriceRequest)
+            .WithMany(e => e.Suppliers)
+            .HasForeignKey(e => e.PriceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PriceRequestSupplier>()
+            .HasOne(e => e.Supplier)
+            .WithMany()
+            .HasForeignKey(e => e.SupplierId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PriceRequestQuote>()
+            .HasOne(e => e.PriceRequestLine)
+            .WithMany(e => e.Quotes)
+            .HasForeignKey(e => e.PriceRequestLineId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PriceRequestQuote>()
+            .HasOne(e => e.Supplier)
+            .WithMany()
+            .HasForeignKey(e => e.SupplierId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
