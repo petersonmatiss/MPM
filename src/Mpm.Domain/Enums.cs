@@ -94,3 +94,17 @@ public enum NotificationPriority
     High,
     Critical
 }
+
+public enum PriceRequestStatus
+{
+    Draft,
+    Submitted,
+    Quoted,
+    Rejected
+}
+
+public enum MaterialType
+{
+    Sheet,
+    Profile
+}

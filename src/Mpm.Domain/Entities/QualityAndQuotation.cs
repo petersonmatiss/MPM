@@ -89,3 +89,32 @@ public class QuotationLine : TenantEntity
     // Navigation properties
     public virtual Quotation Quotation { get; set; } = null!;
 }
+
+public class PriceRequest : TenantEntity
+{
+    public string Number { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public PriceRequestStatus Status { get; set; } = PriceRequestStatus.Draft;
+    public DateTime RequestDate { get; set; } = DateTime.UtcNow;
+    public DateTime? SubmittedDate { get; set; }
+    public string RequestedBy { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    
+    // Navigation properties
+    public virtual ICollection<PriceRequestLine> Lines { get; set; } = new List<PriceRequestLine>();
+}
+
+public class PriceRequestLine : TenantEntity
+{
+    public int PriceRequestId { get; set; }
+    public MaterialType MaterialType { get; set; }
+    public string Dimensions { get; set; } = string.Empty;
+    public decimal TotalLength { get; set; } // for profiles, in mm
+    public int PieceCount { get; set; } // for sheets or profile pieces
+    public string SteelGrade { get; set; } = string.Empty;
+    public string ProfileType { get; set; } = string.Empty; // mandatory for profiles
+    public string Notes { get; set; } = string.Empty;
+    
+    // Navigation properties
+    public virtual PriceRequest PriceRequest { get; set; } = null!;
+}
