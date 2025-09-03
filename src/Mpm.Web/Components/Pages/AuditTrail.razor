@@ -1,0 +1,193 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IAuditService AuditService
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Audit Trail</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (loading)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else if (auditEntries == null || !auditEntries.Any())
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No audit entries found.</MudText>
+        }
+        else
+        {
+            <MudDataGrid Items="@auditEntries" Dense="true" Hover="true" ReadOnly="true"
+                        SortMode="@SortMode.None" Filterable="false" Groupable="false">
+                <Columns>
+                    <PropertyColumn Property="x => x.ActionDate" Title="Date" Format="yyyy-MM-dd HH:mm:ss" />
+                    <PropertyColumn Property="x => x.Action" Title="Action" />
+                    <PropertyColumn Property="x => x.UserName" Title="User" />
+                    <PropertyColumn Property="x => x.FieldName" Title="Field" />
+                    <TemplateColumn Title="Change">
+                        <CellTemplate>
+                            @if (!string.IsNullOrEmpty(context.Item!.FieldName) && 
+                                (!string.IsNullOrEmpty(context.Item.OldValue) || !string.IsNullOrEmpty(context.Item.NewValue)))
+                            {
+                                <MudStack>
+                                    @if (!string.IsNullOrEmpty(context.Item.OldValue))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Error">From: @context.Item.OldValue</MudText>
+                                    }
+                                    @if (!string.IsNullOrEmpty(context.Item.NewValue))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Success">To: @context.Item.NewValue</MudText>
+                                    }
+                                </MudStack>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Reason" Title="Reason" />
+                    <TemplateColumn Title="Details">
+                        <CellTemplate>
+                            @if (!string.IsNullOrEmpty(context.Item!.AdditionalContext))
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.Info" Size="Size.Small" 
+                                             OnClick="() => ShowDetails(context.Item)" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        }
+    </MudCardContent>
+</MudCard>
+
+<MudDialog @bind-Visible="showDetailsDialog">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Audit Entry Details</MudText>
+        @if (selectedAuditEntry != null)
+        {
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">Action:</MudText>
+                    <MudText>@selectedAuditEntry.Action</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">Date:</MudText>
+                    <MudText>@selectedAuditEntry.ActionDate.ToString("yyyy-MM-dd HH:mm:ss")</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">User:</MudText>
+                    <MudText>@selectedAuditEntry.UserName (@selectedAuditEntry.UserId)</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">User Role:</MudText>
+                    <MudText>@selectedAuditEntry.UserRole</MudText>
+                </MudItem>
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.FieldName))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Field Changed:</MudText>
+                        <MudText>@selectedAuditEntry.FieldName</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.OldValue))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Old Value:</MudText>
+                        <MudText Color="Color.Error">@selectedAuditEntry.OldValue</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.NewValue))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">New Value:</MudText>
+                        <MudText Color="Color.Success">@selectedAuditEntry.NewValue</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.Reason))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Reason:</MudText>
+                        <MudText>@selectedAuditEntry.Reason</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.IpAddress))
+                {
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.subtitle2">IP Address:</MudText>
+                        <MudText>@selectedAuditEntry.IpAddress</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.CorrelationId))
+                {
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.subtitle2">Correlation ID:</MudText>
+                        <MudText>@selectedAuditEntry.CorrelationId</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrEmpty(selectedAuditEntry.AdditionalContext))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Additional Context:</MudText>
+                        <MudText>@selectedAuditEntry.AdditionalContext</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => showDetailsDialog = false">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public string EntityType { get; set; } = string.Empty;
+    [Parameter] public int EntityId { get; set; }
+    [Parameter] public bool AutoLoad { get; set; } = true;
+
+    private bool loading = false;
+    private List<AuditEntry> auditEntries = new();
+    private bool showDetailsDialog = false;
+    private AuditEntry? selectedAuditEntry;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AutoLoad && !string.IsNullOrEmpty(EntityType) && EntityId > 0)
+        {
+            await LoadAuditTrail();
+        }
+    }
+
+    public async Task LoadAuditTrail()
+    {
+        if (string.IsNullOrEmpty(EntityType) || EntityId <= 0)
+            return;
+
+        loading = true;
+        try
+        {
+            var result = await AuditService.GetEntityAuditTrailAsync(EntityType, EntityId);
+            auditEntries = result.ToList();
+        }
+        catch (Exception)
+        {
+            // Handle error - could inject Snackbar for notification
+            auditEntries = new List<AuditEntry>();
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    public async Task RefreshAuditTrail()
+    {
+        await LoadAuditTrail();
+    }
+
+    private void ShowDetails(AuditEntry auditEntry)
+    {
+        selectedAuditEntry = auditEntry;
+        showDetailsDialog = true;
+    }
+}

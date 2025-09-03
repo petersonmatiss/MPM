@@ -1,0 +1,387 @@
+@page "/purchase-requests"
+@using Mpm.Domain.Entities
+@using Mpm.Domain
+@using Mpm.Services
+@inject IPurchaseRequestService PurchaseRequestService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Purchase Requests - MPM</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Purchase Request Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Header Actions -->
+        <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by PR number, title..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                             Style="min-width: 300px;" />
+                
+                <MudSelect @bind-Value="statusFilter" Label="Status Filter" Class="mt-0" Style="min-width: 150px;">
+                    <MudSelectItem Value="@("all")">All Requests</MudSelectItem>
+                    <MudSelectItem Value="@(PRStatus.Draft.ToString())">Draft</MudSelectItem>
+                    <MudSelectItem Value="@(PRStatus.Sent.ToString())">Sent</MudSelectItem>
+                    <MudSelectItem Value="@(PRStatus.Collecting.ToString())">Collecting</MudSelectItem>
+                    <MudSelectItem Value="@(PRStatus.Completed.ToString())">Completed</MudSelectItem>
+                    <MudSelectItem Value="@(PRStatus.Canceled.ToString())">Canceled</MudSelectItem>
+                </MudSelect>
+            </div>
+            
+            <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                          StartIcon="Icons.Material.Filled.Add" 
+                          OnClick="OpenCreatePurchaseRequestDialog">
+                    Create Purchase Request
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
+                          OnClick="LoadPurchaseRequests">
+                    Refresh
+                </MudButton>
+            </div>
+        </div>
+
+        <MudDataGrid Items="@filteredPurchaseRequests" Loading="@loading" Dense="true" Hover="true"
+                     SortMode="@SortMode.Multiple" RowsPerPage="25" Filterable="false">
+            <Columns>
+                <PropertyColumn Property="x => x.Number" Title="PR Number" />
+                <PropertyColumn Property="x => x.Title" Title="Title" />
+                <PropertyColumn Property="x => x.RequestedBy" Title="Requested By" />
+                <PropertyColumn Property="x => x.RequestedDate" Title="Requested Date" Format="yyyy-MM-dd" />
+                <TemplateColumn Title="Status">
+                    <CellTemplate>
+                        <MudChip T="string" Color="@GetStatusColor(context.Item!.Status)" Size="Size.Small" Variant="Variant.Filled">
+                            @context.Item.Status
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.Project!.Name" Title="Project" />
+                <PropertyColumn Property="x => x.WinnerSupplier!.Name" Title="Winner" />
+                <TemplateColumn Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <div class="d-flex gap-2">
+                            <MudIconButton Icon="Icons.Material.Filled.Visibility" Size="Size.Small" 
+                                         Color="Color.Primary" Title="View Details"
+                                         OnClick="() => OpenPurchaseRequestDetails(context.Item!)" />
+                            
+                            @if (context.Item!.Status == PRStatus.Draft)
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.Edit" Size="Size.Small" 
+                                             Color="Color.Secondary" Title="Edit"
+                                             OnClick="() => OpenEditPurchaseRequestDialog(context.Item)" />
+                                <MudIconButton Icon="Icons.Material.Filled.Send" Size="Size.Small" 
+                                             Color="Color.Info" Title="Send for Quotes"
+                                             OnClick="() => SendForQuotes(context.Item)" />
+                            }
+                            
+                            @if (context.Item.Status == PRStatus.Sent)
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.Collections" Size="Size.Small" 
+                                             Color="Color.Success" Title="Start Collecting"
+                                             OnClick="() => StartCollecting(context.Item)" />
+                            }
+                            
+                            @if (context.Item.Status == PRStatus.Collecting)
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.EmojiEvents" Size="Size.Small" 
+                                             Color="Color.Warning" Title="Select Winner"
+                                             OnClick="() => SelectWinner(context.Item)" />
+                                <MudIconButton Icon="Icons.Material.Filled.CheckCircle" Size="Size.Small" 
+                                             Color="Color.Success" Title="Complete"
+                                             OnClick="() => Complete(context.Item)" />
+                            }
+                            
+                            @if (context.Item.Status != PRStatus.Completed && context.Item.Status != PRStatus.Canceled)
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.Cancel" Size="Size.Small" 
+                                             Color="Color.Error" Title="Cancel"
+                                             OnClick="() => Cancel(context.Item)" />
+                            }
+                            
+                            @if (context.Item.Status == PRStatus.Draft)
+                            {
+                                <MudIconButton Icon="Icons.Material.Filled.Delete" Size="Size.Small" 
+                                             Color="Color.Error" Title="Delete"
+                                             OnClick="() => DeletePurchaseRequest(context.Item)" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+<!-- Purchase Request Details Dialog -->
+<MudDialog @bind-Visible="showDetailsDialog" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+    <DialogContent>
+        @if (selectedPr != null)
+        {
+            <MudTabs>
+                <MudTabPanel Text="General">
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.subtitle2">PR Number:</MudText>
+                            <MudText>@selectedPr.Number</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.subtitle2">Status:</MudText>
+                            <MudChip T="string" Color="@GetStatusColor(selectedPr.Status)" Size="Size.Small">
+                                @selectedPr.Status
+                            </MudChip>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.subtitle2">Title:</MudText>
+                            <MudText>@selectedPr.Title</MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.subtitle2">Description:</MudText>
+                            <MudText>@selectedPr.Description</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.subtitle2">Requested By:</MudText>
+                            <MudText>@selectedPr.RequestedBy</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.subtitle2">Requested Date:</MudText>
+                            <MudText>@selectedPr.RequestedDate.ToString("yyyy-MM-dd")</MudText>
+                        </MudItem>
+                        @if (selectedPr.WinnerSupplier != null)
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.subtitle2">Winner:</MudText>
+                                <MudText>@selectedPr.WinnerSupplier.Name</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.subtitle2">Selected By:</MudText>
+                                <MudText>@selectedPr.WinnerSelectedBy</MudText>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Lines">
+                    <MudDataGrid Items="@selectedPr.Lines" Dense="true" ReadOnly="true">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Material!.Grade" Title="Material" />
+                            <PropertyColumn Property="x => x.Quantity" Title="Quantity" />
+                            <PropertyColumn Property="x => x.UnitOfMeasure" Title="Unit" />
+                            <PropertyColumn Property="x => x.Specifications" Title="Specifications" />
+                        </Columns>
+                    </MudDataGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Quotes">
+                    <MudDataGrid Items="@selectedPr.Quotes" Dense="true" ReadOnly="true">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Supplier!.Name" Title="Supplier" />
+                            <PropertyColumn Property="x => x.QuoteReference" Title="Quote Ref" />
+                            <PropertyColumn Property="x => x.TotalAmount" Title="Total Amount" Format="C2" />
+                            <PropertyColumn Property="x => x.Currency" Title="Currency" />
+                            <PropertyColumn Property="x => x.DeliveryDays" Title="Delivery Days" />
+                            <TemplateColumn Title="Selected">
+                                <CellTemplate>
+                                    @if (context.Item!.IsSelected)
+                                    {
+                                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                                    }
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                    </MudDataGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Audit Trail">
+                    <AuditTrail EntityType="@AuditEntityTypes.PurchaseRequest" EntityId="@selectedPr.Id" />
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => showDetailsDialog = false">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<PurchaseRequest> purchaseRequests = new();
+    private List<PurchaseRequest> filteredPurchaseRequests = new();
+    private bool loading = true;
+    private string searchString = "";
+    private string statusFilter = "all";
+    private bool showDetailsDialog = false;
+    private PurchaseRequest? selectedPr;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPurchaseRequests();
+    }
+
+    private async Task LoadPurchaseRequests()
+    {
+        loading = true;
+        try
+        {
+            var prs = await PurchaseRequestService.GetAllAsync();
+            purchaseRequests = prs.ToList();
+            FilterPurchaseRequests();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading purchase requests: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void FilterPurchaseRequests()
+    {
+        filteredPurchaseRequests = purchaseRequests.Where(pr =>
+        {
+            var matchesSearch = string.IsNullOrEmpty(searchString) ||
+                               pr.Number.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               pr.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+
+            var matchesStatus = statusFilter == "all" || pr.Status.ToString() == statusFilter;
+
+            return matchesSearch && matchesStatus;
+        }).ToList();
+    }
+
+    private Color GetStatusColor(PRStatus status) => status switch
+    {
+        PRStatus.Draft => Color.Default,
+        PRStatus.Sent => Color.Info,
+        PRStatus.Collecting => Color.Warning,
+        PRStatus.Completed => Color.Success,
+        PRStatus.Canceled => Color.Error,
+        _ => Color.Default
+    };
+
+    private void OpenCreatePurchaseRequestDialog()
+    {
+        // Implement create dialog
+        Snackbar.Add("Create PR dialog not yet implemented", Severity.Info);
+    }
+
+    private void OpenEditPurchaseRequestDialog(PurchaseRequest pr)
+    {
+        // Implement edit dialog
+        Snackbar.Add("Edit PR dialog not yet implemented", Severity.Info);
+    }
+
+    private void OpenPurchaseRequestDetails(PurchaseRequest pr)
+    {
+        selectedPr = pr;
+        showDetailsDialog = true;
+    }
+
+    private async Task SendForQuotes(PurchaseRequest pr)
+    {
+        try
+        {
+            await PurchaseRequestService.SendForQuotesAsync(pr.Id, "current-user", "Current User", "Sent from UI");
+            Snackbar.Add($"Purchase request {pr.Number} sent for quotes", Severity.Success);
+            await LoadPurchaseRequests();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending PR for quotes: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task StartCollecting(PurchaseRequest pr)
+    {
+        try
+        {
+            await PurchaseRequestService.StartCollectingAsync(pr.Id, "current-user", "Current User", "Started collecting from UI");
+            Snackbar.Add($"Started collecting quotes for PR {pr.Number}", Severity.Success);
+            await LoadPurchaseRequests();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error starting collection: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void SelectWinner(PurchaseRequest pr)
+    {
+        // Implement winner selection dialog
+        Snackbar.Add("Winner selection dialog not yet implemented", Severity.Info);
+    }
+
+    private async Task Complete(PurchaseRequest pr)
+    {
+        try
+        {
+            await PurchaseRequestService.CompleteAsync(pr.Id, "current-user", "Current User", "Completed from UI");
+            Snackbar.Add($"Purchase request {pr.Number} completed", Severity.Success);
+            await LoadPurchaseRequests();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error completing PR: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Cancel(PurchaseRequest pr)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Cancel Purchase Request",
+            $"Are you sure you want to cancel PR {pr.Number}?",
+            yesText: "Cancel PR", cancelText: "Keep PR");
+
+        if (result == true)
+        {
+            try
+            {
+                await PurchaseRequestService.CancelAsync(pr.Id, "current-user", "Current User", "Canceled from UI");
+                Snackbar.Add($"Purchase request {pr.Number} canceled", Severity.Success);
+                await LoadPurchaseRequests();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error canceling PR: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeletePurchaseRequest(PurchaseRequest pr)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Delete Purchase Request",
+            $"Are you sure you want to delete PR {pr.Number}? This action cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await PurchaseRequestService.DeleteAsync(pr.Id);
+                Snackbar.Add($"Purchase request {pr.Number} deleted", Severity.Success);
+                await LoadPurchaseRequests();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting PR: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task OnSearchStringChanged(string value)
+    {
+        searchString = value;
+        FilterPurchaseRequests();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnStatusFilterChanged(string value)
+    {
+        statusFilter = value;
+        FilterPurchaseRequests();
+        await Task.CompletedTask;
+    }
+}

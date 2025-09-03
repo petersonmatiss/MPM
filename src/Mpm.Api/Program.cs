@@ -467,6 +467,176 @@ app.MapDelete("/api/suppliers/{id}", async (int id, ISupplierService supplierSer
 .WithName("DeleteSupplier")
 .WithOpenApi();
 
+// Purchase Requests API endpoints
+app.MapGet("/api/purchase-requests", async (IPurchaseRequestService prService, string? status, int? projectId) =>
+{
+    if (!string.IsNullOrEmpty(status) && Enum.TryParse<PRStatus>(status, true, out var statusEnum))
+    {
+        var prs = await prService.GetByStatusAsync(statusEnum);
+        return Results.Ok(prs);
+    }
+    
+    if (projectId.HasValue)
+    {
+        var prs = await prService.GetByProjectAsync(projectId.Value);
+        return Results.Ok(prs);
+    }
+    
+    var allPrs = await prService.GetAllAsync();
+    return Results.Ok(allPrs);
+})
+.WithName("GetPurchaseRequests")
+.WithOpenApi();
+
+app.MapGet("/api/purchase-requests/{id}", async (int id, IPurchaseRequestService prService) =>
+{
+    var pr = await prService.GetByIdAsync(id);
+    return pr is not null ? Results.Ok(pr) : Results.NotFound();
+})
+.WithName("GetPurchaseRequest")
+.WithOpenApi();
+
+app.MapPost("/api/purchase-requests", async (PurchaseRequest pr, IPurchaseRequestService prService) =>
+{
+    try
+    {
+        var created = await prService.CreateAsync(pr);
+        return Results.Created($"/api/purchase-requests/{created.Id}", created);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreatePurchaseRequest")
+.WithOpenApi();
+
+app.MapPut("/api/purchase-requests/{id}", async (int id, PurchaseRequest pr, IPurchaseRequestService prService) =>
+{
+    if (id != pr.Id)
+        return Results.BadRequest(new { error = "ID mismatch" });
+
+    try
+    {
+        var updated = await prService.UpdateAsync(pr);
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UpdatePurchaseRequest")
+.WithOpenApi();
+
+app.MapDelete("/api/purchase-requests/{id}", async (int id, IPurchaseRequestService prService) =>
+{
+    try
+    {
+        await prService.DeleteAsync(id);
+        return Results.NoContent();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("DeletePurchaseRequest")
+.WithOpenApi();
+
+// Purchase Request Transition endpoints
+app.MapPost("/api/purchase-requests/{id}/send", async (int id, IPurchaseRequestService prService, SendPrRequest request) =>
+{
+    try
+    {
+        var updated = await prService.SendForQuotesAsync(id, request.UserId, request.UserName, request.Reason ?? "");
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("SendPurchaseRequest")
+.WithOpenApi();
+
+app.MapPost("/api/purchase-requests/{id}/start-collecting", async (int id, IPurchaseRequestService prService, SendPrRequest request) =>
+{
+    try
+    {
+        var updated = await prService.StartCollectingAsync(id, request.UserId, request.UserName, request.Reason ?? "");
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("StartCollectingPurchaseRequest")
+.WithOpenApi();
+
+app.MapPost("/api/purchase-requests/{id}/complete", async (int id, IPurchaseRequestService prService, SendPrRequest request) =>
+{
+    try
+    {
+        var updated = await prService.CompleteAsync(id, request.UserId, request.UserName, request.Reason ?? "");
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CompletePurchaseRequest")
+.WithOpenApi();
+
+app.MapPost("/api/purchase-requests/{id}/cancel", async (int id, IPurchaseRequestService prService, CancelPrRequest request) =>
+{
+    try
+    {
+        var updated = await prService.CancelAsync(id, request.UserId, request.UserName, request.Reason);
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CancelPurchaseRequest")
+.WithOpenApi();
+
+app.MapPost("/api/purchase-requests/{id}/select-winner", async (int id, IPurchaseRequestService prService, SelectWinnerRequest request) =>
+{
+    try
+    {
+        var updated = await prService.SelectWinnerAsync(id, request.SupplierId, request.UserId, request.UserName, request.Reason ?? "");
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("SelectPurchaseRequestWinner")
+.WithOpenApi();
+
+// Audit Trail endpoints
+app.MapGet("/api/audit/{entityType}/{entityId}", async (string entityType, int entityId, IAuditService auditService) =>
+{
+    var auditTrail = await auditService.GetEntityAuditTrailAsync(entityType, entityId);
+    return Results.Ok(auditTrail);
+})
+.WithName("GetEntityAuditTrail")
+.WithOpenApi();
+
+app.MapGet("/api/audit/user/{userId}", async (string userId, IAuditService auditService, DateTime? fromDate, DateTime? toDate) =>
+{
+    var auditTrail = await auditService.GetUserAuditTrailAsync(userId, fromDate, toDate);
+    return Results.Ok(auditTrail);
+})
+.WithName("GetUserAuditTrail")
+.WithOpenApi();
+
 // Invoices API endpoints
 app.MapGet("/api/invoices", async (IInvoiceService invoiceService, int? supplierId, DateTime? fromDate, DateTime? toDate) =>
 {
