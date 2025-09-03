@@ -52,6 +52,7 @@ public class PriceRequestLine : TenantEntity
     public int Pieces { get; set; }  // Number of pieces needed
     
     public int? SteelGradeId { get; set; }
+    public int? ProfileTypeId { get; set; }  // For profile materials only
     
     [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters")]
     public string Notes { get; set; } = string.Empty;
@@ -59,6 +60,7 @@ public class PriceRequestLine : TenantEntity
     // Navigation properties
     public virtual PriceRequest PriceRequest { get; set; } = null!;
     public virtual SteelGrade? SteelGrade { get; set; }
+    public virtual ProfileType? ProfileType { get; set; }
     public virtual ICollection<PriceRequestQuote> Quotes { get; set; } = new List<PriceRequestQuote>();
 }
 

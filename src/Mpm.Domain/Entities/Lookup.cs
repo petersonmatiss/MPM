@@ -30,4 +30,5 @@ public class ProfileType : TenantEntity
     // Navigation properties
     public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
     public virtual ICollection<Profile> Profiles { get; set; } = new List<Profile>();
+    public virtual ICollection<PriceRequestLine> PriceRequestLines { get; set; } = new List<PriceRequestLine>();
 }

@@ -40,6 +40,16 @@ public class PriceRequestAcceptanceCriteriaTests
         context.SteelGrades.AddRange(steelGrades);
         await context.SaveChangesAsync();
 
+        // Create profile types (following existing system)
+        var profileTypes = new List<ProfileType>
+        {
+            new ProfileType { Code = "HEB", Name = "HEB Beam", Category = "Beam", Description = "European wide flange beam", StandardWeight = 25.5m, DimensionFormat = "HxBxS", IsActive = true },
+            new ProfileType { Code = "IPE", Name = "IPE Beam", Category = "Beam", Description = "European I-beam", StandardWeight = 12.8m, DimensionFormat = "HxBxS", IsActive = true }
+        };
+        
+        context.ProfileTypes.AddRange(profileTypes);
+        await context.SaveChangesAsync();
+
         // Create suppliers
         var suppliers = new List<Supplier>
         {
@@ -79,6 +89,7 @@ public class PriceRequestAcceptanceCriteriaTests
                     TotalLength = 120000, // Total length in millimeters
                     Pieces = 10,          // Number of pieces
                     SteelGradeId = steelGrades[1].Id, // FK to existing SteelGrade
+                    ProfileTypeId = profileTypes[0].Id, // FK to ProfileType
                     Notes = "Standard 12m lengths preferred"
                 },
                 // Another sheet with different steel grade

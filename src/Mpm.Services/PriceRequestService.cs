@@ -35,6 +35,8 @@ public class PriceRequestService : IPriceRequestService
         return await _context.PriceRequests
             .Include(pr => pr.Lines)
                 .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
             .Include(pr => pr.Suppliers)
                 .ThenInclude(s => s.Supplier)
             .OrderByDescending(pr => pr.RequestDate)
@@ -46,6 +48,8 @@ public class PriceRequestService : IPriceRequestService
         return await _context.PriceRequests
             .Include(pr => pr.Lines)
                 .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
             .Include(pr => pr.Lines)
                 .ThenInclude(l => l.Quotes)
                     .ThenInclude(q => q.Supplier)
@@ -59,6 +63,8 @@ public class PriceRequestService : IPriceRequestService
         return await _context.PriceRequests
             .Include(pr => pr.Lines)
                 .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
             .Include(pr => pr.Suppliers)
                 .ThenInclude(s => s.Supplier)
             .FirstOrDefaultAsync(pr => pr.Number == number);
@@ -273,6 +279,8 @@ public class PriceRequestService : IPriceRequestService
         return await _context.PriceRequests
             .Include(pr => pr.Lines)
                 .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
             .Include(pr => pr.Suppliers)
                 .ThenInclude(s => s.Supplier)
             .Where(pr => pr.Status == status)
@@ -343,6 +351,8 @@ public class PriceRequestService : IPriceRequestService
                     throw new InvalidOperationException("Total length must be greater than 0 for profiles.");
                 if (line.Pieces <= 0)
                     throw new InvalidOperationException("Number of pieces must be greater than 0 for profiles.");
+                if (!line.ProfileTypeId.HasValue || line.ProfileTypeId <= 0)
+                    throw new InvalidOperationException("Profile type is required for profile materials.");
                 break;
         }
 

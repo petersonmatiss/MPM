@@ -545,6 +545,12 @@ public class MpmDbContext : DbContext
             .HasForeignKey(e => e.SteelGradeId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.ProfileType)
+            .WithMany(e => e.PriceRequestLines)
+            .HasForeignKey(e => e.ProfileTypeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<PriceRequestSupplier>()
             .HasOne(e => e.PriceRequest)
             .WithMany(e => e.Suppliers)

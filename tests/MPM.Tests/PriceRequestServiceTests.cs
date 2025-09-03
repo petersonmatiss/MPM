@@ -54,6 +54,24 @@ public class PriceRequestServiceTests
         return supplier;
     }
 
+    private async Task<ProfileType> CreateTestProfileType(MpmDbContext context)
+    {
+        var profileType = new ProfileType
+        {
+            Code = "HEB",
+            Name = "HEB Beam",
+            Category = "Beam",
+            Description = "European wide flange beam",
+            StandardWeight = 25.5m,
+            DimensionFormat = "HxBxS",
+            IsActive = true
+        };
+        
+        context.ProfileTypes.Add(profileType);
+        await context.SaveChangesAsync();
+        return profileType;
+    }
+
     [Fact]
     public async Task CreateAsync_ValidPriceRequestWithMixedLines_ShouldCreateSuccessfully()
     {
@@ -61,6 +79,7 @@ public class PriceRequestServiceTests
         using var context = GetInMemoryContext();
         var service = new PriceRequestService(context);
         var steelGrade = await CreateTestSteelGrade(context);
+        var profileType = await CreateTestProfileType(context);
         
         var priceRequest = new PriceRequest
         {
@@ -90,6 +109,7 @@ public class PriceRequestServiceTests
                     TotalLength = 60000, // 60 meters total
                     Pieces = 5, // 5 pieces of 12m each
                     SteelGradeId = steelGrade.Id,
+                    ProfileTypeId = profileType.Id,
                     Notes = "Standard length 12m"
                 }
             }
@@ -118,6 +138,7 @@ public class PriceRequestServiceTests
         Assert.Equal(60000, profileLine.TotalLength);
         Assert.Equal(5, profileLine.Pieces);
         Assert.Equal(steelGrade.Id, profileLine.SteelGradeId);
+        Assert.Equal(profileType.Id, profileLine.ProfileTypeId);
         
         // Verify auto-generated number
         Assert.NotEmpty(result.Number);
@@ -177,6 +198,39 @@ public class PriceRequestServiceTests
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.CreateAsync(priceRequest));
+    }
+
+    [Fact]
+    public async Task CreateAsync_ProfileLineWithoutProfileType_ShouldThrowException()
+    {
+        // Arrange
+        using var context = GetInMemoryContext();
+        var service = new PriceRequestService(context);
+        var steelGrade = await CreateTestSteelGrade(context);
+        
+        var priceRequest = new PriceRequest
+        {
+            Description = "Test price request",
+            RequestedBy = "Test Buyer",
+            Lines = new List<PriceRequestLine>
+            {
+                new PriceRequestLine
+                {
+                    MaterialType = MaterialType.Profile,
+                    Description = "HEB beam",
+                    Dimension = "200x200x15",
+                    TotalLength = 12000,
+                    Pieces = 1,
+                    SteelGradeId = steelGrade.Id
+                    // Missing ProfileTypeId
+                }
+            }
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.CreateAsync(priceRequest));
+        Assert.Contains("Profile type is required for profile materials", exception.Message);
     }
 
     [Fact]
@@ -398,6 +452,7 @@ public class PriceRequestServiceTests
         using var context = GetInMemoryContext();
         var service = new PriceRequestService(context);
         var steelGrade = await CreateTestSteelGrade(context);
+        var profileType = await CreateTestProfileType(context);
         
         var priceRequest = new PriceRequest
         {
@@ -426,7 +481,8 @@ public class PriceRequestServiceTests
             Dimension = "200x200x15",
             TotalLength = 12000,
             Pieces = 1,
-            SteelGradeId = steelGrade.Id
+            SteelGradeId = steelGrade.Id,
+            ProfileTypeId = profileType.Id
         };
 
         // Act
