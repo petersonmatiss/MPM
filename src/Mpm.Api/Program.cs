@@ -525,6 +525,103 @@ app.MapDelete("/api/invoices/{id}", async (int id, IInvoiceService invoiceServic
 .WithName("DeleteInvoice")
 .WithOpenApi();
 
+// Supplier Quotes API endpoints
+app.MapGet("/api/supplier-quotes", async (ISupplierQuoteService supplierQuoteService) =>
+{
+    var quotes = await supplierQuoteService.GetAllAsync();
+    return Results.Ok(quotes);
+})
+.WithName("GetSupplierQuotes")
+.WithOpenApi();
+
+app.MapGet("/api/supplier-quotes/purchase-order-line/{purchaseOrderLineId}", async (int purchaseOrderLineId, ISupplierQuoteService supplierQuoteService) =>
+{
+    var quotes = await supplierQuoteService.GetByPurchaseOrderLineAsync(purchaseOrderLineId);
+    return Results.Ok(quotes);
+})
+.WithName("GetSupplierQuotesByPurchaseOrderLine")
+.WithOpenApi();
+
+app.MapGet("/api/supplier-quotes/supplier/{supplierId}", async (int supplierId, ISupplierQuoteService supplierQuoteService) =>
+{
+    var quotes = await supplierQuoteService.GetBySupplierAsync(supplierId);
+    return Results.Ok(quotes);
+})
+.WithName("GetSupplierQuotesBySupplier")
+.WithOpenApi();
+
+app.MapGet("/api/supplier-quotes/{purchaseOrderLineId}/{supplierId}", async (int purchaseOrderLineId, int supplierId, ISupplierQuoteService supplierQuoteService) =>
+{
+    var quote = await supplierQuoteService.GetByIdAsync(purchaseOrderLineId, supplierId);
+    return quote is not null ? Results.Ok(quote) : Results.NotFound();
+})
+.WithName("GetSupplierQuote")
+.WithOpenApi();
+
+app.MapPost("/api/supplier-quotes", async (SupplierQuote quote, ISupplierQuoteService supplierQuoteService) =>
+{
+    try
+    {
+        var created = await supplierQuoteService.CreateAsync(quote);
+        return Results.Created($"/api/supplier-quotes/{created.PurchaseOrderLineId}/{created.SupplierId}", created);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateSupplierQuote")
+.WithOpenApi();
+
+app.MapPut("/api/supplier-quotes/{purchaseOrderLineId}/{supplierId}", async (int purchaseOrderLineId, int supplierId, SupplierQuote quote, ISupplierQuoteService supplierQuoteService) =>
+{
+    if (purchaseOrderLineId != quote.PurchaseOrderLineId || supplierId != quote.SupplierId)
+        return Results.BadRequest(new { error = "ID mismatch" });
+
+    try
+    {
+        var updated = await supplierQuoteService.UpdateAsync(quote);
+        return Results.Ok(updated);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("UpdateSupplierQuote")
+.WithOpenApi();
+
+app.MapDelete("/api/supplier-quotes/{purchaseOrderLineId}/{supplierId}", async (int purchaseOrderLineId, int supplierId, ISupplierQuoteService supplierQuoteService) =>
+{
+    await supplierQuoteService.DeleteAsync(purchaseOrderLineId, supplierId);
+    return Results.NoContent();
+})
+.WithName("DeleteSupplierQuote")
+.WithOpenApi();
+
+app.MapPost("/api/supplier-quotes/import-csv", async (IFormFile csvFile, ISupplierQuoteService supplierQuoteService) =>
+{
+    if (csvFile == null || csvFile.Length == 0)
+        return Results.BadRequest(new { error = "CSV file is required" });
+
+    try
+    {
+        using var stream = csvFile.OpenReadStream();
+        var quotes = await supplierQuoteService.ImportFromCsvAsync(stream);
+        return Results.Ok(new { message = $"Successfully imported {quotes.Count()} quotes", quotes });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = $"Import failed: {ex.Message}" });
+    }
+})
+.WithName("ImportSupplierQuotesFromCsv")
+.WithOpenApi();
+
 // Sheets API endpoints
 app.MapGet("/api/sheets", async (ISheetService sheetService, int? thicknessMm, string? sizeFilter) =>
 {

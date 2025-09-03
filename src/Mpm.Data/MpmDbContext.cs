@@ -23,6 +23,7 @@ public class MpmDbContext : DbContext
     public DbSet<Supplier> Suppliers { get; set; }
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; }
     public DbSet<PurchaseOrderLine> PurchaseOrderLines { get; set; }
+    public DbSet<SupplierQuote> SupplierQuotes { get; set; }
     public DbSet<GoodsReceiptNote> GoodsReceiptNotes { get; set; }
     public DbSet<GoodsReceiptNoteLine> GoodsReceiptNoteLines { get; set; }
     public DbSet<InventoryLot> InventoryLots { get; set; }
@@ -71,6 +72,7 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<Supplier>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrderLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<SupplierQuote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNoteLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<InventoryLot>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
@@ -198,6 +200,35 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<TimeLog>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<Notification>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<SupplierQuote>().Property(e => e.RowVersion).IsRowVersion();
+
+        // Configure SupplierQuote composite key and relationships
+        modelBuilder.Entity<SupplierQuote>()
+            .HasKey(sq => new { sq.PurchaseOrderLineId, sq.SupplierId });
+            
+        modelBuilder.Entity<SupplierQuote>()
+            .HasOne(sq => sq.PurchaseOrderLine)
+            .WithMany()
+            .HasForeignKey(sq => sq.PurchaseOrderLineId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<SupplierQuote>()
+            .HasOne(sq => sq.Supplier)
+            .WithMany()
+            .HasForeignKey(sq => sq.SupplierId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(sq => sq.Price)
+            .HasPrecision(18, 4);
+            
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(sq => sq.Currency)
+            .HasMaxLength(3);
+            
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(sq => sq.Notes)
+            .HasMaxLength(1000);
 
         // Configure string lengths
         modelBuilder.Entity<Invoice>()

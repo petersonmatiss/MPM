@@ -58,6 +58,18 @@ public interface IPurchaseOrderService
     Task<IEnumerable<PurchaseOrder>> GetBySupplierAsync(int supplierId);
 }
 
+public interface ISupplierQuoteService
+{
+    Task<IEnumerable<SupplierQuote>> GetAllAsync();
+    Task<SupplierQuote?> GetByIdAsync(int purchaseOrderLineId, int supplierId);
+    Task<IEnumerable<SupplierQuote>> GetByPurchaseOrderLineAsync(int purchaseOrderLineId);
+    Task<IEnumerable<SupplierQuote>> GetBySupplierAsync(int supplierId);
+    Task<SupplierQuote> CreateAsync(SupplierQuote supplierQuote);
+    Task<SupplierQuote> UpdateAsync(SupplierQuote supplierQuote);
+    Task DeleteAsync(int purchaseOrderLineId, int supplierId);
+    Task<IEnumerable<SupplierQuote>> ImportFromCsvAsync(Stream csvStream);
+}
+
 public class MaterialService : IMaterialService
 {
     private readonly MpmDbContext _context;
@@ -445,5 +457,189 @@ public class QuotationService : IQuotationService
             _context.Quotations.Remove(quotation);
             await _context.SaveChangesAsync();
         }
+    }
+}
+
+public class SupplierQuoteService : ISupplierQuoteService
+{
+    private readonly MpmDbContext _context;
+
+    public SupplierQuoteService(MpmDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<IEnumerable<SupplierQuote>> GetAllAsync()
+    {
+        return await _context.SupplierQuotes
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.PurchaseOrder)
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.Material)
+            .Include(sq => sq.Supplier)
+            .OrderBy(sq => sq.PurchaseOrderLineId)
+            .ThenBy(sq => sq.Supplier.Name)
+            .ToListAsync();
+    }
+
+    public async Task<SupplierQuote?> GetByIdAsync(int purchaseOrderLineId, int supplierId)
+    {
+        return await _context.SupplierQuotes
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.PurchaseOrder)
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.Material)
+            .Include(sq => sq.Supplier)
+            .FirstOrDefaultAsync(sq => sq.PurchaseOrderLineId == purchaseOrderLineId && sq.SupplierId == supplierId);
+    }
+
+    public async Task<IEnumerable<SupplierQuote>> GetByPurchaseOrderLineAsync(int purchaseOrderLineId)
+    {
+        return await _context.SupplierQuotes
+            .Include(sq => sq.Supplier)
+            .Where(sq => sq.PurchaseOrderLineId == purchaseOrderLineId)
+            .OrderBy(sq => sq.Supplier.Name)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<SupplierQuote>> GetBySupplierAsync(int supplierId)
+    {
+        return await _context.SupplierQuotes
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.PurchaseOrder)
+            .Include(sq => sq.PurchaseOrderLine)
+                .ThenInclude(pol => pol.Material)
+            .Where(sq => sq.SupplierId == supplierId)
+            .OrderBy(sq => sq.PurchaseOrderLineId)
+            .ToListAsync();
+    }
+
+    public async Task<SupplierQuote> CreateAsync(SupplierQuote supplierQuote)
+    {
+        _context.SupplierQuotes.Add(supplierQuote);
+        await _context.SaveChangesAsync();
+        return supplierQuote;
+    }
+
+    public async Task<SupplierQuote> UpdateAsync(SupplierQuote supplierQuote)
+    {
+        _context.SupplierQuotes.Update(supplierQuote);
+        await _context.SaveChangesAsync();
+        return supplierQuote;
+    }
+
+    public async Task DeleteAsync(int purchaseOrderLineId, int supplierId)
+    {
+        var quote = await _context.SupplierQuotes
+            .FirstOrDefaultAsync(sq => sq.PurchaseOrderLineId == purchaseOrderLineId && sq.SupplierId == supplierId);
+        if (quote != null)
+        {
+            _context.SupplierQuotes.Remove(quote);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<IEnumerable<SupplierQuote>> ImportFromCsvAsync(Stream csvStream)
+    {
+        var quotes = new List<SupplierQuote>();
+        var errors = new List<string>();
+
+        using var reader = new StreamReader(csvStream);
+        var line = await reader.ReadLineAsync(); // Skip header
+        var lineNumber = 1;
+
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            lineNumber++;
+            try
+            {
+                var parts = line.Split(',');
+                if (parts.Length < 6)
+                {
+                    errors.Add($"Line {lineNumber}: Insufficient columns. Expected: PurchaseOrderLineId, SupplierId, Price, Currency, ValidityDate, LeadTimeDays, Notes");
+                    continue;
+                }
+
+                var purchaseOrderLineId = int.Parse(parts[0].Trim());
+                var supplierId = int.Parse(parts[1].Trim());
+                var price = decimal.Parse(parts[2].Trim());
+                var currency = parts[3].Trim().ToUpperInvariant();
+                var validityDate = DateTime.Parse(parts[4].Trim());
+                var leadTimeDays = string.IsNullOrWhiteSpace(parts[5].Trim()) ? (int?)null : int.Parse(parts[5].Trim());
+                var notes = parts.Length > 6 ? parts[6].Trim() : string.Empty;
+
+                // Validate that the purchase order line exists
+                var purchaseOrderLineExists = await _context.PurchaseOrderLines
+                    .AnyAsync(pol => pol.Id == purchaseOrderLineId);
+                if (!purchaseOrderLineExists)
+                {
+                    errors.Add($"Line {lineNumber}: Purchase Order Line with ID {purchaseOrderLineId} does not exist");
+                    continue;
+                }
+
+                // Validate that the supplier exists
+                var supplierExists = await _context.Suppliers
+                    .AnyAsync(s => s.Id == supplierId);
+                if (!supplierExists)
+                {
+                    errors.Add($"Line {lineNumber}: Supplier with ID {supplierId} does not exist");
+                    continue;
+                }
+
+                // Validate currency
+                if (!Domain.Constants.Currency.IsValidCurrency(currency))
+                {
+                    errors.Add($"Line {lineNumber}: Invalid currency '{currency}'");
+                    continue;
+                }
+
+                var quote = new SupplierQuote
+                {
+                    PurchaseOrderLineId = purchaseOrderLineId,
+                    SupplierId = supplierId,
+                    Price = price,
+                    Currency = currency,
+                    ValidityDate = validityDate,
+                    LeadTimeDays = leadTimeDays,
+                    Notes = notes
+                };
+
+                quotes.Add(quote);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Line {lineNumber}: {ex.Message}");
+            }
+        }
+
+        if (errors.Any())
+        {
+            throw new InvalidOperationException($"CSV import failed with errors: {string.Join("; ", errors)}");
+        }
+
+        // Save all valid quotes
+        foreach (var quote in quotes)
+        {
+            // Check if quote already exists, update if it does
+            var existingQuote = await _context.SupplierQuotes
+                .FirstOrDefaultAsync(sq => sq.PurchaseOrderLineId == quote.PurchaseOrderLineId && sq.SupplierId == quote.SupplierId);
+            
+            if (existingQuote != null)
+            {
+                existingQuote.Price = quote.Price;
+                existingQuote.Currency = quote.Currency;
+                existingQuote.ValidityDate = quote.ValidityDate;
+                existingQuote.LeadTimeDays = quote.LeadTimeDays;
+                existingQuote.Notes = quote.Notes;
+                _context.SupplierQuotes.Update(existingQuote);
+            }
+            else
+            {
+                _context.SupplierQuotes.Add(quote);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return quotes;
     }
 }
