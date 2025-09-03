@@ -1,0 +1,326 @@
+@page "/quote-matrix"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject ISupplierQuoteService SupplierQuoteService
+@inject IPurchaseOrderService PurchaseOrderService
+@inject ISupplierService SupplierService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Quote Matrix - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Supplier Quote Matrix</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Header Actions -->
+        <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudSelect @bind-Value="selectedPurchaseOrderId" Label="Purchase Order" Class="mt-0" Style="min-width: 200px;" T="int?">
+                    <MudSelectItem Value="@((int?)null)">All Purchase Orders</MudSelectItem>
+                    @foreach (var po in purchaseOrders)
+                    {
+                        <MudSelectItem Value="@po.Id">@po.Number - @po.Supplier.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                
+                <MudTextField @bind-Value="searchString" Placeholder="Search lines..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                             Style="min-width: 250px;" />
+            </div>
+            
+            <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" 
+                          Color="Color.Secondary"
+                          StartIcon="Icons.Material.Filled.Upload"
+                          OnClick="OpenFileUploadDialog">
+                    Import CSV
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" 
+                          StartIcon="Icons.Material.Filled.Download"
+                          OnClick="DownloadCsvTemplate">
+                    Download Template
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
+                          OnClick="LoadData">
+                    Refresh
+                </MudButton>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center pa-4">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else
+        {
+            <!-- Quote Matrix -->
+            <MudDataGrid T="PurchaseOrderLineWithQuotes" Items="@filteredLineItems" 
+                        Sortable="true" Filterable="false" Groupable="false"
+                        Hover="true" FixedHeader="true" Height="600px">
+                
+                <!-- Purchase Order Line Info Columns -->
+                <Columns>
+                    <PropertyColumn Property="x => x.PurchaseOrderLine.PurchaseOrder.Number" Title="PO Number" />
+                    <PropertyColumn Property="x => x.PurchaseOrderLine.Material.Grade" Title="Material Grade" />
+                    <PropertyColumn Property="x => x.PurchaseOrderLine.Material.Dimension" Title="Dimension" />
+                    <PropertyColumn Property="x => x.PurchaseOrderLine.Quantity" Title="Quantity" Format="{0:N2}" />
+                    <PropertyColumn Property="x => x.PurchaseOrderLine.UnitOfMeasure" Title="UOM" />
+                    
+                    <!-- Dynamic Supplier Columns -->
+                    @foreach (var supplier in suppliers)
+                    {
+                        <TemplateColumn Title="@supplier.Name" HeaderStyle="background-color: var(--mud-palette-primary-lighten);">
+                            <CellTemplate>
+                                @{
+                                    var quote = context.Item.Quotes.FirstOrDefault(q => q.SupplierId == supplier.Id);
+                                }
+                                <div class="quote-cell" style="min-width: 200px;">
+                                    @if (quote != null)
+                                    {
+                                        <div class="d-flex flex-column gap-1">
+                                            <MudTextField Value="@quote.Price" Label="Price" Variant="Variant.Outlined" 
+                                                         Margin="Margin.Dense" T="decimal" Format="N4"
+                                                         Adornment="Adornment.End" AdornmentText="@quote.Currency"
+                                                         ValueChanged="@(async (decimal value) => await UpdateQuotePrice(quote, value))" />
+                                            <MudDatePicker Date="@quote.ValidityDate" Label="Valid Until" Variant="Variant.Outlined" 
+                                                          Margin="Margin.Dense"
+                                                          DateChanged="@(async (DateTime? value) => await UpdateQuoteValidityDate(quote, value))" />
+                                            <MudNumericField Value="@quote.LeadTimeDays" Label="Lead Time (days)" Variant="Variant.Outlined" 
+                                                           Margin="Margin.Dense" T="int?"
+                                                           ValueChanged="@(async (int? value) => await UpdateQuoteLeadTime(quote, value))" />
+                                            <MudTextField Value="@quote.Notes" Label="Notes" Variant="Variant.Outlined" 
+                                                         Margin="Margin.Dense" Lines="2"
+                                                         ValueChanged="@(async (string value) => await UpdateQuoteNotes(quote, value))" />
+                                            <MudIconButton Icon="Icons.Material.Filled.Delete" 
+                                                          Color="Color.Error" Size="Size.Small"
+                                                          OnClick="async () => await DeleteQuote(quote)" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                                  StartIcon="Icons.Material.Filled.Add" Size="Size.Small"
+                                                  OnClick="async () => await CreateQuote(context.Item.PurchaseOrderLine.Id, supplier.Id)">
+                                            Add Quote
+                                        </MudButton>
+                                    }
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    }
+                </Columns>
+            </MudDataGrid>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool isLoading = true;
+    private string searchString = "";
+    private int? selectedPurchaseOrderId;
+    
+    private List<PurchaseOrder> purchaseOrders = new();
+    private List<Supplier> suppliers = new();
+    private List<PurchaseOrderLineWithQuotes> lineItems = new();
+    
+    public class PurchaseOrderLineWithQuotes
+    {
+        public PurchaseOrderLine PurchaseOrderLine { get; set; } = null!;
+        public List<SupplierQuote> Quotes { get; set; } = new();
+    }
+    
+    private IEnumerable<PurchaseOrderLineWithQuotes> filteredLineItems => 
+        lineItems.Where(item => 
+            (selectedPurchaseOrderId == null || item.PurchaseOrderLine.PurchaseOrderId == selectedPurchaseOrderId) &&
+            (string.IsNullOrEmpty(searchString) || 
+             item.PurchaseOrderLine.Material.Grade.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+             item.PurchaseOrderLine.Material.Dimension.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+             item.PurchaseOrderLine.PurchaseOrder.Number.Contains(searchString, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            // Load purchase orders with lines and materials
+            purchaseOrders = (await PurchaseOrderService.GetAllAsync()).ToList();
+            
+            // Load suppliers
+            suppliers = (await SupplierService.GetAllAsync()).ToList();
+            
+            // Load all quotes
+            var allQuotes = (await SupplierQuoteService.GetAllAsync()).ToList();
+            
+            // Build line items with quotes
+            lineItems = new List<PurchaseOrderLineWithQuotes>();
+            foreach (var po in purchaseOrders)
+            {
+                foreach (var line in po.Lines)
+                {
+                    var lineWithQuotes = new PurchaseOrderLineWithQuotes
+                    {
+                        PurchaseOrderLine = line,
+                        Quotes = allQuotes.Where(q => q.PurchaseOrderLineId == line.Id).ToList()
+                    };
+                    lineItems.Add(lineWithQuotes);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CreateQuote(int purchaseOrderLineId, int supplierId)
+    {
+        try
+        {
+            var newQuote = new SupplierQuote
+            {
+                PurchaseOrderLineId = purchaseOrderLineId,
+                SupplierId = supplierId,
+                Price = 0,
+                Currency = Mpm.Domain.Constants.Currency.EUR,
+                ValidityDate = DateTime.Today.AddDays(30),
+                Notes = ""
+            };
+
+            var created = await SupplierQuoteService.CreateAsync(newQuote);
+            
+            // Update the line item with the new quote
+            var lineItem = lineItems.FirstOrDefault(li => li.PurchaseOrderLine.Id == purchaseOrderLineId);
+            if (lineItem != null)
+            {
+                lineItem.Quotes.Add(created);
+            }
+            
+            Snackbar.Add("Quote created successfully", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating quote: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UpdateQuotePrice(SupplierQuote quote, decimal value)
+    {
+        quote.Price = value;
+        await SaveQuote(quote);
+    }
+
+    private async Task UpdateQuoteValidityDate(SupplierQuote quote, DateTime? value)
+    {
+        if (value.HasValue)
+        {
+            quote.ValidityDate = value.Value;
+            await SaveQuote(quote);
+        }
+    }
+
+    private async Task UpdateQuoteLeadTime(SupplierQuote quote, int? value)
+    {
+        quote.LeadTimeDays = value;
+        await SaveQuote(quote);
+    }
+
+    private async Task UpdateQuoteNotes(SupplierQuote quote, string value)
+    {
+        quote.Notes = value ?? "";
+        await SaveQuote(quote);
+    }
+
+    private async Task SaveQuote(SupplierQuote quote)
+    {
+        try
+        {
+            await SupplierQuoteService.UpdateAsync(quote);
+            Snackbar.Add("Quote updated", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating quote: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OpenFileUploadDialog()
+    {
+        // For now, show a simple message - we'll implement file upload later
+        Snackbar.Add("CSV import will be implemented using the API endpoint", Severity.Info);
+    }
+
+    private async Task DeleteQuote(SupplierQuote quote)
+    {
+        try
+        {
+            await SupplierQuoteService.DeleteAsync(quote.PurchaseOrderLineId, quote.SupplierId);
+            
+            // Remove from the line item
+            var lineItem = lineItems.FirstOrDefault(li => li.PurchaseOrderLine.Id == quote.PurchaseOrderLineId);
+            if (lineItem != null)
+            {
+                lineItem.Quotes.Remove(quote);
+            }
+            
+            Snackbar.Add("Quote deleted", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting quote: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DownloadCsvTemplate()
+    {
+        var csvContent = "PurchaseOrderLineId,SupplierId,Price,Currency,ValidityDate,LeadTimeDays,Notes\n" +
+                        "1,1,100.50,EUR,2024-12-31,14,Sample quote\n";
+        
+        var fileName = "supplier_quotes_template.csv";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes), "text/csv");
+    }
+}
+
+<script>
+    window.downloadFile = (filename, content, contentType) => {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = `data:${contentType};base64,${content}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
+
+<style>
+    .quote-cell {
+        padding: 8px;
+        border-radius: 4px;
+        background-color: var(--mud-palette-background-grey);
+    }
+    
+    .mud-table-head th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: var(--mud-palette-surface);
+    }
+</style>
