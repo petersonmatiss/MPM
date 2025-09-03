@@ -94,3 +94,12 @@ public enum NotificationPriority
     High,
     Critical
 }
+
+public enum PRStatus
+{
+    Draft,
+    Sent,
+    Collecting,
+    Completed,
+    Canceled
+}

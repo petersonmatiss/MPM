@@ -56,6 +56,15 @@ public class MpmDbContext : DbContext
     public DbSet<ProfileUsage> ProfileUsages { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    
+    // Purchase Request entities
+    public DbSet<PurchaseRequest> PurchaseRequests { get; set; }
+    public DbSet<PurchaseRequestLine> PurchaseRequestLines { get; set; }
+    public DbSet<PurchaseRequestQuote> PurchaseRequestQuotes { get; set; }
+    public DbSet<PurchaseRequestQuoteItem> PurchaseRequestQuoteItems { get; set; }
+    
+    // Audit entities
+    public DbSet<AuditEntry> AuditEntries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +109,15 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<TimeLog>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Purchase Request query filters
+        modelBuilder.Entity<PurchaseRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseRequestQuote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseRequestQuoteItem>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Audit query filters
+        modelBuilder.Entity<AuditEntry>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
 
         // Configure precision for decimal properties
         modelBuilder.Entity<BomItem>()
