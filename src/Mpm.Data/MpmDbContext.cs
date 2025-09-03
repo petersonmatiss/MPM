@@ -42,6 +42,11 @@ public class MpmDbContext : DbContext
     public DbSet<Quotation> Quotations { get; set; }
     public DbSet<QuotationLine> QuotationLines { get; set; }
     
+    // Price requests
+    public DbSet<PriceRequest> PriceRequests { get; set; }
+    public DbSet<PriceRequestLine> PriceRequestLines { get; set; }
+    public DbSet<PriceRequestSend> PriceRequestSends { get; set; }
+    
     // New entities for MPM
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<InvoiceLine> InvoiceLines { get; set; }
@@ -85,6 +90,11 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<DoPHeat>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Quotation>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<QuotationLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Price request query filters
+        modelBuilder.Entity<PriceRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestSend>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         
         // New entities query filters
         modelBuilder.Entity<Invoice>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
@@ -198,6 +208,11 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<TimeLog>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<Notification>().Property(e => e.RowVersion).IsRowVersion();
+        
+        // Configure price request concurrency tokens
+        modelBuilder.Entity<PriceRequest>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestLine>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestSend>().Property(e => e.RowVersion).IsRowVersion();
 
         // Configure string lengths
         modelBuilder.Entity<Invoice>()
@@ -243,6 +258,46 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileType>()
             .Property(e => e.Category)
             .HasMaxLength(50);
+
+        // Configure price request string lengths
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Number)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Currency)
+            .HasMaxLength(3);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Description)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Notes)
+            .HasMaxLength(1000);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.UnitOfMeasure)
+            .HasMaxLength(10);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Description)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+            
+        modelBuilder.Entity<PriceRequestSend>()
+            .Property(e => e.RecipientEmail)
+            .HasMaxLength(255);
+        modelBuilder.Entity<PriceRequestSend>()
+            .Property(e => e.AttachmentHash)
+            .HasMaxLength(64);
+        modelBuilder.Entity<PriceRequestSend>()
+            .Property(e => e.EmailSubject)
+            .HasMaxLength(255);
+        modelBuilder.Entity<PriceRequestSend>()
+            .Property(e => e.EmailBody)
+            .HasMaxLength(2000);
+        modelBuilder.Entity<PriceRequestSend>()
+            .Property(e => e.ErrorMessage)
+            .HasMaxLength(500);
 
         // Configure decimal precision
         modelBuilder.Entity<Invoice>()
@@ -312,6 +367,11 @@ public class MpmDbContext : DbContext
             .Property(e => e.HoursWorked)
             .HasPrecision(18, 2);
 
+        // Configure price request decimal precision
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Quantity)
+            .HasPrecision(18, 4);
+
         // Configure unique indexes
         modelBuilder.Entity<Invoice>()
             .HasIndex(e => new { e.TenantId, e.Number })
@@ -358,6 +418,21 @@ public class MpmDbContext : DbContext
             
         modelBuilder.Entity<Notification>()
             .HasIndex(e => new { e.TenantId, e.RecipientUserId, e.IsRead });
+
+        // Configure price request unique indexes
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Number })
+            .IsUnique();
+            
+        // Configure price request performance indexes
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Status, e.RequestDate });
+            
+        modelBuilder.Entity<PriceRequestSend>()
+            .HasIndex(e => new { e.TenantId, e.PriceRequestId, e.SupplierId });
+            
+        modelBuilder.Entity<PriceRequestSend>()
+            .HasIndex(e => new { e.TenantId, e.Status, e.SentAt });
 
         // Configure relationships
         modelBuilder.Entity<Invoice>()
@@ -442,6 +517,37 @@ public class MpmDbContext : DbContext
             .HasOne(e => e.ProfileRemnant)
             .WithMany(e => e.Usages)
             .HasForeignKey(e => e.ProfileRemnantId)
+            .OnDelete(DeleteBehavior.Restrict);
+            
+        // Configure price request relationships
+        modelBuilder.Entity<PriceRequest>()
+            .HasOne(e => e.Project)
+            .WithMany()
+            .HasForeignKey(e => e.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.PriceRequest)
+            .WithMany(e => e.Lines)
+            .HasForeignKey(e => e.PriceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.Material)
+            .WithMany()
+            .HasForeignKey(e => e.MaterialId)
+            .OnDelete(DeleteBehavior.Restrict);
+            
+        modelBuilder.Entity<PriceRequestSend>()
+            .HasOne(e => e.PriceRequest)
+            .WithMany(e => e.Sends)
+            .HasForeignKey(e => e.PriceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<PriceRequestSend>()
+            .HasOne(e => e.Supplier)
+            .WithMany()
+            .HasForeignKey(e => e.SupplierId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

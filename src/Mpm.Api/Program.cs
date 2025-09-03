@@ -758,6 +758,102 @@ app.MapGet("/api/steel-grades", async (ISteelGradeService steelGradeService) =>
 .WithName("GetSteelGrades")
 .WithOpenApi();
 
+// Price Request endpoints
+app.MapGet("/api/price-requests", async (IPriceRequestService priceRequestService) =>
+{
+    var priceRequests = await priceRequestService.GetAllAsync();
+    return Results.Ok(priceRequests);
+})
+.WithName("GetPriceRequests")
+.WithOpenApi();
+
+app.MapGet("/api/price-requests/{id}", async (int id, IPriceRequestService priceRequestService) =>
+{
+    var priceRequest = await priceRequestService.GetByIdAsync(id);
+    return priceRequest is not null 
+        ? Results.Ok(priceRequest) 
+        : Results.NotFound($"Price request with ID {id} not found");
+})
+.WithName("GetPriceRequest")
+.WithOpenApi();
+
+app.MapPost("/api/price-requests", async (PriceRequest priceRequest, IPriceRequestService priceRequestService) =>
+{
+    try
+    {
+        var created = await priceRequestService.CreateAsync(priceRequest);
+        return Results.Created($"/api/price-requests/{created.Id}", created);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithName("CreatePriceRequest")
+.WithOpenApi();
+
+app.MapPut("/api/price-requests/{id}", async (int id, PriceRequest priceRequest, IPriceRequestService priceRequestService) =>
+{
+    if (id != priceRequest.Id)
+    {
+        return Results.BadRequest("ID mismatch");
+    }
+    
+    try
+    {
+        var updated = await priceRequestService.UpdateAsync(priceRequest);
+        return Results.Ok(updated);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithName("UpdatePriceRequest")
+.WithOpenApi();
+
+app.MapDelete("/api/price-requests/{id}", async (int id, IPriceRequestService priceRequestService) =>
+{
+    try
+    {
+        await priceRequestService.DeleteAsync(id);
+        return Results.NoContent();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithName("DeletePriceRequest")
+.WithOpenApi();
+
+app.MapPost("/api/price-requests/{id}/send", async (int id, int[] supplierIds, IPriceRequestService priceRequestService) =>
+{
+    try
+    {
+        var priceRequest = await priceRequestService.SendToSuppliersAsync(id, supplierIds);
+        return Results.Ok(priceRequest);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(ex.Message);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithName("SendPriceRequest")
+.WithOpenApi();
+
+app.MapGet("/api/price-requests/{id}/send-logs", async (int id, IPriceRequestService priceRequestService) =>
+{
+    var sendLogs = await priceRequestService.GetSendLogsAsync(id);
+    return Results.Ok(sendLogs);
+})
+.WithName("GetPriceRequestSendLogs")
+.WithOpenApi();
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
