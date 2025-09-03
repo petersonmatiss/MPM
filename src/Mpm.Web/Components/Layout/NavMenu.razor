@@ -1,76 +1,43 @@
-﻿<MudNavMenu>
-    <MudText Variant="Variant.h6" Class="px-4">MPM</MudText>
-    <MudText Variant="Variant.body2" Class="px-4 mud-text-secondary">MetalProjekts Management</MudText>
+﻿<MudNavMenu Class="nav-menu">
+    <MudText Variant="Variant.h6" Class="px-4 nav-title">MPM</MudText>
+    <MudText Variant="Variant.body2" Class="px-4 mud-text-secondary nav-subtitle">MetalProjekts Management</MudText>
     <MudDivider Class="my-2" />
     
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="Icons.Material.Filled.Dashboard">
-        Dashboard
-    </MudNavLink>
-    
-    <MudNavGroup Text="CRM" Icon="Icons.Material.Filled.People" Expanded="true">
-        <MudNavLink Href="/customers" Icon="Icons.Material.Filled.Person">
-            Customers
-        </MudNavLink>
-        <MudNavLink Href="/projects" Icon="Icons.Material.Filled.Engineering">
-            Projects
-        </MudNavLink>
-        <MudNavLink Href="/quotations" Icon="Icons.Material.Filled.RequestQuote">
-            Quotations
+    <MudNavGroup Text="Dashboard" Icon="Icons.Material.Filled.Dashboard" Expanded="true" Class="nav-section dashboard-section">
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="Icons.Material.Filled.Home" Class="nav-item-link">
+            Home
         </MudNavLink>
     </MudNavGroup>
     
-    <MudNavGroup Text="Materials" Icon="Icons.Material.Filled.Inventory" Expanded="true">
-        <MudNavLink Href="/inventory" Icon="Icons.Material.Filled.Inventory2">
+    <MudNavGroup Text="Projects" Icon="Icons.Material.Filled.Engineering" Expanded="true" Class="nav-section projects-section">
+        <MudNavLink Href="/customers" Icon="Icons.Material.Filled.Person" Class="nav-item-link">
+            Customers
+        </MudNavLink>
+    </MudNavGroup>
+    
+    <MudNavGroup Text="Material" Icon="Icons.Material.Filled.Inventory" Expanded="true" Class="nav-section material-section">
+        <MudNavLink Href="/inventory" Icon="Icons.Material.Filled.Inventory2" Class="nav-item-link">
             Inventory
         </MudNavLink>
-        <MudNavLink Href="/materials" Icon="Icons.Material.Filled.Category">
-            Materials
-        </MudNavLink>
-        <MudNavLink Href="/sheets" Icon="Icons.Material.Filled.RectangleOutlined">
+        <MudNavLink Href="/sheets" Icon="Icons.Material.Filled.RectangleOutlined" Class="nav-item-link">
             Sheets
         </MudNavLink>
-        <MudNavLink Href="/profiles" Icon="Icons.Material.Filled.ViewColumn">
+        <MudNavLink Href="/profiles" Icon="Icons.Material.Filled.ViewColumn" Class="nav-item-link">
             Profiles
         </MudNavLink>
-        <MudNavLink Href="/suppliers" Icon="Icons.Material.Filled.Factory">
+        <MudNavLink Href="/suppliers" Icon="Icons.Material.Filled.Factory" Class="nav-item-link">
             Suppliers
         </MudNavLink>
-        <MudNavLink Href="/invoices" Icon="Icons.Material.Filled.Receipt">
+        <MudNavLink Href="/invoices" Icon="Icons.Material.Filled.Receipt" Class="nav-item-link">
             Invoices
         </MudNavLink>
-        <MudNavLink Href="/purchase-orders" Icon="Icons.Material.Filled.ShoppingCart">
+        <MudNavLink Href="/purchase-orders" Icon="Icons.Material.Filled.ShoppingCart" Class="nav-item-link">
             Purchase Orders
         </MudNavLink>
     </MudNavGroup>
     
-    <MudNavGroup Text="Production" Icon="Icons.Material.Filled.Precision Manufacturing" Expanded="false">
-        <MudNavLink Href="/work-orders" Icon="Icons.Material.Filled.Assignment">
-            Work Orders
-        </MudNavLink>
-        <MudNavLink Href="/mes" Icon="Icons.Material.Filled.Build">
-            MES Terminal
-        </MudNavLink>
-    </MudNavGroup>
-    
-    <MudNavGroup Text="Quality" Icon="Icons.Material.Filled.VerifiedUser" Expanded="false">
-        <MudNavLink Href="/ncr" Icon="Icons.Material.Filled.ReportProblem">
-            NCR
-        </MudNavLink>
-        <MudNavLink Href="/declarations" Icon="Icons.Material.Filled.Assignment turned in">
-            DoP
-        </MudNavLink>
-        <MudNavLink Href="/certificates" Icon="Icons.Material.Filled.Certificate">
-            Certificates
-        </MudNavLink>
-    </MudNavGroup>
-    
-    <MudNavGroup Text="Reports" Icon="Icons.Material.Filled.Analytics" Expanded="false">
-        <MudNavLink Href="/reports/kpi" Icon="Icons.Material.Filled.Dashboard">
-            KPI Dashboard
-        </MudNavLink>
-        <MudNavLink Href="/reports/oee" Icon="Icons.Material.Filled.Timeline">
-            OEE
-        </MudNavLink>
+    <MudNavGroup Text="Workers" Icon="Icons.Material.Filled.Groups" Expanded="false" Class="nav-section workers-section">
+        <!-- Placeholder for worker-related functionality - pages to be created later -->
     </MudNavGroup>
 </MudNavMenu>
 

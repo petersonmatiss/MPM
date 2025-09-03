@@ -1,3 +1,5 @@
+/* Color Palette: #8ecae6, #219ebc, #023047, #ffb703, #fb8500 */
+
 .navbar-toggler {
     appearance: none;
     cursor: pointer;
@@ -17,13 +19,168 @@
 
 .top-row {
     height: 3.5rem;
-    background-color: rgba(0,0,0,0.4);
+    background-color: #023047;
 }
 
 .navbar-brand {
     font-size: 1.1rem;
 }
 
+/* Navigation Menu Styling */
+.nav-menu {
+    background: linear-gradient(180deg, #023047 0%, #219ebc 100%);
+    height: 100%;
+}
+
+.nav-title {
+    color: #8ecae6 !important;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.nav-subtitle {
+    color: #8ecae6 !important;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Section Headers with Color Coding */
+.nav-section {
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-section .mud-nav-group-header {
+    background: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
+    border-radius: 12px;
+    margin: 0.25rem 0.5rem;
+    box-shadow: 0 4px 8px rgba(251, 133, 0, 0.3);
+}
+
+.projects-section .mud-nav-group-header {
+    background: linear-gradient(135deg, #8ecae6 0%, #219ebc 100%);
+    border-radius: 12px;
+    margin: 0.25rem 0.5rem;
+    box-shadow: 0 4px 8px rgba(33, 158, 188, 0.3);
+}
+
+.material-section .mud-nav-group-header {
+    background: linear-gradient(135deg, #219ebc 0%, #023047 100%);
+    border-radius: 12px;
+    margin: 0.25rem 0.5rem;
+    box-shadow: 0 4px 8px rgba(2, 48, 71, 0.3);
+}
+
+.workers-section .mud-nav-group-header {
+    background: linear-gradient(135deg, #fb8500 0%, #ffb703 100%);
+    border-radius: 12px;
+    margin: 0.25rem 0.5rem;
+    box-shadow: 0 4px 8px rgba(255, 183, 3, 0.3);
+}
+
+/* Icon Styling - Rounded with Shadow */
+.nav-section .mud-nav-group-header .mud-icon {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    padding: 0.5rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    margin-right: 0.75rem;
+}
+
+.nav-item-link .mud-icon {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    padding: 0.4rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    margin-right: 0.75rem;
+}
+
+/* Nav Group Header Text */
+.mud-nav-group-header {
+    color: white !important;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    border: none;
+}
+
+.mud-nav-group-header:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px);
+    transition: all 0.2s ease-in-out;
+}
+
+/* Nav Link Items */
+.nav-item-link {
+    color: #8ecae6 !important;
+    background: none !important;
+    border: none;
+    border-radius: 8px;
+    margin: 0.25rem 0.75rem;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+}
+
+.nav-item-link:hover {
+    background: rgba(142, 202, 230, 0.15) !important;
+    color: white !important;
+    transform: translateX(4px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item-link.active {
+    background: rgba(255, 183, 3, 0.2) !important;
+    color: #ffb703 !important;
+    box-shadow: 0 3px 8px rgba(255, 183, 3, 0.3);
+    border-left: 3px solid #ffb703;
+}
+
+/* Divider Styling */
+.mud-divider {
+    background-color: rgba(142, 202, 230, 0.3);
+    margin: 1rem 0;
+}
+
+/* Scroll styling for wide screens */
+.nav-scrollable {
+    display: none;
+}
+
+.navbar-toggler:checked ~ .nav-scrollable {
+    display: block;
+}
+
+@media (min-width: 641px) {
+    .navbar-toggler {
+        display: none;
+    }
+
+    .nav-scrollable {
+        display: block;
+        height: calc(100vh - 3.5rem);
+        overflow-y: auto;
+    }
+    
+    /* Custom scrollbar */
+    .nav-scrollable::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .nav-scrollable::-webkit-scrollbar-track {
+        background: rgba(2, 48, 71, 0.1);
+    }
+    
+    .nav-scrollable::-webkit-scrollbar-thumb {
+        background: rgba(142, 202, 230, 0.5);
+        border-radius: 3px;
+    }
+    
+    .nav-scrollable::-webkit-scrollbar-thumb:hover {
+        background: rgba(142, 202, 230, 0.8);
+    }
+}
+
+/* Legacy icon classes (maintained for compatibility) */
 .bi {
     display: inline-block;
     position: relative;
@@ -46,6 +203,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-list-nested' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M4.5 11.5A.5.5 0 0 1 5 11h10a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 1 3h10a.5.5 0 0 1 0 1H1a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E");
 }
 
+/* Legacy nav item styles */
 .nav-item {
     font-size: 0.9rem;
     padding-bottom: 0.5rem;
@@ -79,27 +237,4 @@
 .nav-item ::deep .nav-link:hover {
     background-color: rgba(255,255,255,0.1);
     color: white;
-}
-
-.nav-scrollable {
-    display: none;
-}
-
-.navbar-toggler:checked ~ .nav-scrollable {
-    display: block;
-}
-
-@media (min-width: 641px) {
-    .navbar-toggler {
-        display: none;
-    }
-
-    .nav-scrollable {
-        /* Never collapse the sidebar for wide screens */
-        display: block;
-
-        /* Allow sidebar to scroll for tall menus */
-        height: calc(100vh - 3.5rem);
-        overflow-y: auto;
-    }
 }
