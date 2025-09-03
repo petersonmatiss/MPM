@@ -19,6 +19,67 @@ MPM (MetalProjekts Management) is a modern .NET 8 application that manages steel
 - **🔔 Notifications**: Email, SMS, and Teams integration
 - **🏷️ QR/Labeling**: Automated label generation and tracking
 
+## 🎨 User Interface & Design
+
+### Navigation Structure
+
+The application features a modern, reorganized sidebar navigation designed for optimal user experience:
+
+#### **4-Section Organization**
+- **🏠 Dashboard**: Main dashboard and home page access
+- **🏗️ Projects**: Customer management and project-related functionality
+- **📦 Material**: Complete inventory management suite
+  - Inventory overview
+  - Sheets management
+  - Profiles management
+  - Suppliers directory
+  - Invoices tracking
+  - Purchase orders
+- **👥 Workers**: Placeholder section for future worker-related functionality
+
+#### **Design System**
+
+**Color Palette**: The application uses a cohesive 5-color scheme throughout:
+- `#8ecae6` - Light blue (primary accent)
+- `#219ebc` - Medium blue (secondary)
+- `#023047` - Dark blue (primary dark)
+- `#ffb703` - Bright orange (accent)
+- `#fb8500` - Deep orange (secondary accent)
+
+**Section Color Coding**:
+- **Dashboard**: Orange gradients (`#ffb703` → `#fb8500`) for analytics emphasis
+- **Projects**: Light blue gradients (`#8ecae6` → `#219ebc`) for customer focus
+- **Material**: Dark blue gradients (`#219ebc` → `#023047`) for inventory management
+- **Workers**: Orange gradients (`#fb8500` → `#ffb703`) for production emphasis
+
+**Visual Elements**:
+- **Rounded Icons**: All navigation icons feature rounded backgrounds with drop shadows
+- **Gradient Backgrounds**: Each section uses color-coded gradient backgrounds
+- **Hover Effects**: Smooth transitions and visual feedback on interactions
+- **Active States**: Clear indication of current page with highlighted borders
+- **Typography**: Clean hierarchy with custom styling for navigation elements
+
+#### **Technical Implementation**
+
+**Files Modified**:
+- `src/Mpm.Web/Components/Layout/NavMenu.razor` - Navigation structure
+- `src/Mpm.Web/Components/Layout/NavMenu.razor.css` - Complete styling system
+- `src/Mpm.Web/Components/Layout/MainLayout.razor.css` - Top bar and sidebar themes
+
+**Key CSS Features**:
+- CSS Custom Properties for consistent theming
+- Flexbox layouts for responsive design
+- CSS Grid for complex navigation layouts
+- Smooth transitions using `transition` properties
+- Custom scrollbar styling for improved UX
+- Media queries for mobile responsiveness
+
+**Cleanup & Optimization**:
+- Removed references to non-existent pages
+- Eliminated unused navigation groups (Quality, Reports, Production)
+- Maintained backward compatibility with existing routes
+- Preserved all functional pages while improving organization
+
 ## 🏗️ Architecture
 
 ### Tech Stack
@@ -207,6 +268,15 @@ Current test metrics: **54 tests passing**
 - **EditorConfig** enforces consistent styling
 - **Warnings as errors** in production builds
 
+### UI/UX Standards
+
+- **Design System**: Consistent 5-color palette (`#8ecae6`, `#219ebc`, `#023047`, `#ffb703`, `#fb8500`)
+- **Component Structure**: MudBlazor components with custom CSS styling
+- **Navigation**: 4-section hierarchical organization (Dashboard, Projects, Material, Workers)
+- **Responsive Design**: Mobile-first approach with desktop enhancements
+- **Accessibility**: WCAG 2.1 AA compliance with semantic markup
+- **Visual Feedback**: Hover states, active states, and smooth transitions
+
 ### Architecture Principles
 
 - **Clean Architecture**: Clear separation of concerns
@@ -269,6 +339,9 @@ Terraform scripts for Azure resources:
 - [x] Basic project tracking  
 - [x] Quotation system
 - [x] Authentication & authorization
+- [x] Modern UI/UX with 4-section navigation
+- [x] Cohesive color scheme and design system
+- [x] Responsive navigation with visual feedback
 
 ### Phase 2: Manufacturing (In Progress)
 - [ ] Advanced work order management
