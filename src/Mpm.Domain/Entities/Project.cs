@@ -21,6 +21,7 @@ public class Project : TenantEntity
     public virtual ICollection<BillOfMaterial> BillOfMaterials { get; set; } = new List<BillOfMaterial>();
     public virtual ICollection<WorkOrder> WorkOrders { get; set; } = new List<WorkOrder>();
     public virtual ICollection<DeclarationOfPerformance> DeclarationsOfPerformance { get; set; } = new List<DeclarationOfPerformance>();
+    public virtual ICollection<PurchaseRequest> PurchaseRequests { get; set; } = new List<PurchaseRequest>();
 }
 
 public class BillOfMaterial : TenantEntity

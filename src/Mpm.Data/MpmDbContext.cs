@@ -23,6 +23,10 @@ public class MpmDbContext : DbContext
     public DbSet<Supplier> Suppliers { get; set; }
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; }
     public DbSet<PurchaseOrderLine> PurchaseOrderLines { get; set; }
+    public DbSet<PurchaseRequest> PurchaseRequests { get; set; }
+    public DbSet<PurchaseRequestLine> PurchaseRequestLines { get; set; }
+    public DbSet<SupplierQuote> SupplierQuotes { get; set; }
+    public DbSet<SupplierQuoteLine> SupplierQuoteLines { get; set; }
     public DbSet<GoodsReceiptNote> GoodsReceiptNotes { get; set; }
     public DbSet<GoodsReceiptNoteLine> GoodsReceiptNoteLines { get; set; }
     public DbSet<InventoryLot> InventoryLots { get; set; }
@@ -71,6 +75,10 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<Supplier>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrderLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<SupplierQuote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<SupplierQuoteLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNoteLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<InventoryLot>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
@@ -443,5 +451,151 @@ public class MpmDbContext : DbContext
             .WithMany(e => e.Usages)
             .HasForeignKey(e => e.ProfileRemnantId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure Purchase Request entities
+        ConfigurePurchaseRequestEntities(modelBuilder);
+    }
+
+    private void ConfigurePurchaseRequestEntities(ModelBuilder modelBuilder)
+    {
+        // Configure concurrency tokens
+        modelBuilder.Entity<PurchaseRequest>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PurchaseRequestLine>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<SupplierQuote>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<SupplierQuoteLine>().Property(e => e.RowVersion).IsRowVersion();
+
+        // Configure string lengths
+        modelBuilder.Entity<PurchaseRequest>()
+            .Property(e => e.Number)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PurchaseRequest>()
+            .Property(e => e.Description)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PurchaseRequest>()
+            .Property(e => e.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .Property(e => e.UnitOfMeasure)
+            .HasMaxLength(20);
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .Property(e => e.WinnerSelectedBy)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.QuoteNumber)
+            .HasMaxLength(50);
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.Currency)
+            .HasMaxLength(3);
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.PaymentTerms)
+            .HasMaxLength(100);
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.DeliveryTerms)
+            .HasMaxLength(100);
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .Property(e => e.Notes)
+            .HasMaxLength(500);
+
+        // Configure decimal precision
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .Property(e => e.Quantity)
+            .HasPrecision(18, 4);
+
+        modelBuilder.Entity<SupplierQuote>()
+            .Property(e => e.TotalAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .Property(e => e.UnitPrice)
+            .HasPrecision(18, 4);
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .Property(e => e.DiscountPercent)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .Property(e => e.TotalPrice)
+            .HasPrecision(18, 2);
+
+        // Configure unique indexes
+        modelBuilder.Entity<PurchaseRequest>()
+            .HasIndex(e => new { e.TenantId, e.Number })
+            .IsUnique();
+
+        modelBuilder.Entity<SupplierQuote>()
+            .HasIndex(e => new { e.TenantId, e.PurchaseRequestId, e.SupplierId })
+            .IsUnique();
+
+        // Configure performance indexes
+        modelBuilder.Entity<PurchaseRequest>()
+            .HasIndex(e => new { e.TenantId, e.RequestDate, e.IsCompleted });
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .HasIndex(e => new { e.TenantId, e.PurchaseRequestId, e.WinnerSupplierId });
+
+        modelBuilder.Entity<SupplierQuote>()
+            .HasIndex(e => new { e.TenantId, e.SupplierId, e.QuoteDate });
+
+        // Configure relationships
+        modelBuilder.Entity<PurchaseRequest>()
+            .HasOne(e => e.Project)
+            .WithMany(e => e.PurchaseRequests)
+            .HasForeignKey(e => e.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .HasOne(e => e.PurchaseRequest)
+            .WithMany(e => e.Lines)
+            .HasForeignKey(e => e.PurchaseRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .HasOne(e => e.Material)
+            .WithMany(e => e.PurchaseRequestLines)
+            .HasForeignKey(e => e.MaterialId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .HasOne(e => e.WinnerSupplier)
+            .WithMany(e => e.WinnerPurchaseRequestLines)
+            .HasForeignKey(e => e.WinnerSupplierId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<PurchaseRequestLine>()
+            .HasOne(e => e.WinnerQuoteLine)
+            .WithMany()
+            .HasForeignKey(e => e.WinnerQuoteLineId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SupplierQuote>()
+            .HasOne(e => e.PurchaseRequest)
+            .WithMany()
+            .HasForeignKey(e => e.PurchaseRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupplierQuote>()
+            .HasOne(e => e.Supplier)
+            .WithMany(e => e.SupplierQuotes)
+            .HasForeignKey(e => e.SupplierId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .HasOne(e => e.SupplierQuote)
+            .WithMany(e => e.Lines)
+            .HasForeignKey(e => e.SupplierQuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupplierQuoteLine>()
+            .HasOne(e => e.PurchaseRequestLine)
+            .WithMany(e => e.SupplierQuotes)
+            .HasForeignKey(e => e.PurchaseRequestLineId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

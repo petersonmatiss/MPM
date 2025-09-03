@@ -16,6 +16,7 @@ public class Material : TenantEntity
     // Navigation properties
     public virtual ICollection<BomItem> BomItems { get; set; } = new List<BomItem>();
     public virtual ICollection<PurchaseOrderLine> PurchaseOrderLines { get; set; } = new List<PurchaseOrderLine>();
+    public virtual ICollection<PurchaseRequestLine> PurchaseRequestLines { get; set; } = new List<PurchaseRequestLine>();
     public virtual ICollection<InventoryLot> InventoryLots { get; set; } = new List<InventoryLot>();
 }
 
@@ -54,6 +55,8 @@ public class Supplier : TenantEntity
 
     // Navigation properties
     public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+    public virtual ICollection<SupplierQuote> SupplierQuotes { get; set; } = new List<SupplierQuote>();
+    public virtual ICollection<PurchaseRequestLine> WinnerPurchaseRequestLines { get; set; } = new List<PurchaseRequestLine>();
 }
 
 public class PurchaseOrder : TenantEntity
