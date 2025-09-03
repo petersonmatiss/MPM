@@ -1,0 +1,322 @@
+@page "/purchase-requests"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPurchaseRequestService PurchaseRequestService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Purchase Requests - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Purchase Request Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Header Actions -->
+        <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudTextField @bind-Value="searchString" Placeholder="Search by PR number, description..." 
+                             Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                             IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                             Style="min-width: 300px;" />
+                
+                <MudSelect @bind-Value="statusFilter" Label="Status Filter" Class="mt-0" Style="min-width: 150px;">
+                    <MudSelectItem Value="@("all")">All Requests</MudSelectItem>
+                    <MudSelectItem Value="@("completed")">Completed</MudSelectItem>
+                    <MudSelectItem Value="@("pending")">Pending</MudSelectItem>
+                </MudSelect>
+            </div>
+            
+            <div class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                          StartIcon="Icons.Material.Filled.Add" 
+                          OnClick="OpenCreatePurchaseRequestDialog">
+                    Create Purchase Request
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="Icons.Material.Filled.Refresh" 
+                          OnClick="LoadPurchaseRequests">
+                    Refresh
+                </MudButton>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="d-flex gap-4 mb-4 flex-wrap">
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.RequestPage" Color="Color.Primary" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseRequests.Count()</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Total Requests</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseRequests.Count(pr => pr.IsCompleted)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Completed</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Elevation="2" Style="min-width: 200px;">
+                <MudCardContent Class="pa-4">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="Icons.Material.Filled.Schedule" Color="Color.Warning" />
+                        <div>
+                            <MudText Variant="Variant.h6">@filteredPurchaseRequests.Count(pr => !pr.IsCompleted)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Pending</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </div>
+
+        <!-- Purchase Requests Data Grid -->
+        <MudDataGrid Items="@filteredPurchaseRequests" Filterable="true" SortMode="SortMode.Multiple" 
+                     Loading="@loading" RowsPerPage="20" Height="600px">
+            <Columns>
+                <!-- Status Indicator -->
+                <TemplateColumn Title="Status" Sortable="false" Filterable="false" CellClass="text-center">
+                    <CellTemplate>
+                        <MudIcon Icon="@(context.Item!.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)" 
+                                Color="@(context.Item.IsCompleted ? Color.Success : Color.Warning)" 
+                                Size="Size.Small" />
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- PR Number -->
+                <PropertyColumn Property="x => x.Number" Title="PR Number" />
+
+                <!-- Description -->
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+
+                <!-- Request Date -->
+                <PropertyColumn Property="x => x.RequestDate" Title="Request Date" Format="yyyy-MM-dd" />
+
+                <!-- Required Date -->
+                <TemplateColumn Title="Required Date" Sortable="true" SortBy="@(x => x.RequiredDate)">
+                    <CellTemplate>
+                        @(context.Item!.RequiredDate?.ToString("yyyy-MM-dd") ?? "Not set")
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Total Lines -->
+                <TemplateColumn Title="Lines" Sortable="true" SortBy="@(x => x.Lines.Count)">
+                    <CellTemplate>
+                        @context.Item!.Lines.Count line(s)
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Lines with Winners -->
+                <TemplateColumn Title="Winners Selected" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        @{
+                            var totalLines = context.Item!.Lines.Count;
+                            var linesWithWinners = context.Item.Lines.Count(l => l.WinnerSupplierId != null);
+                        }
+                        <div class="d-flex align-center gap-2">
+                            <MudProgressLinear Color="@(linesWithWinners == totalLines ? Color.Success : Color.Warning)" 
+                                              Value="@(totalLines > 0 ? (double)linesWithWinners / totalLines * 100 : 0)" 
+                                              Size="Size.Small" Style="width: 100px;" />
+                            <MudText Variant="Variant.body2">@linesWithWinners/@totalLines</MudText>
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Request Status -->
+                <TemplateColumn Title="Request Status" Sortable="true" SortBy="@(x => x.IsCompleted)">
+                    <CellTemplate>
+                        <MudChip Color="@(context.Item!.IsCompleted ? Color.Success : Color.Warning)" 
+                                Size="Size.Small" Icon="@(context.Item.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)">
+                            @(context.Item.IsCompleted ? "Completed" : "Pending")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Project -->
+                <TemplateColumn Title="Project">
+                    <CellTemplate>
+                        @if (context.Item!.Project != null)
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Info">
+                                @context.Item.Project.Name
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary" Variant="Variant.body2">N/A</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <!-- Actions -->
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false" Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                      OnClick="@(() => ViewPurchaseRequest(context.Item))"
+                                      Title="View Details" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                      OnClick="@(() => EditPurchaseRequest(context.Item))"
+                                      Title="Edit" />
+                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Assignment" 
+                                      Color="Color.Secondary"
+                                      OnClick="@(() => ManageSupplierSelection(context.Item))"
+                                      Title="Manage Supplier Selection" />
+                        @if (!context.Item!.IsCompleted)
+                        {
+                            var canComplete = context.Item.Lines.All(l => l.WinnerSupplierId != null);
+                            <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Check" 
+                                          Color="Color.Success"
+                                          Disabled="@(!canComplete)"
+                                          OnClick="@(() => CompletePurchaseRequest(context.Item))"
+                                          Title="@(canComplete ? "Complete Request" : "All lines must have a winner selected")" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<PurchaseRequest> purchaseRequests = new();
+    private bool loading = true;
+    private string searchString = string.Empty;
+    private string statusFilter = "all";
+
+    private IEnumerable<PurchaseRequest> filteredPurchaseRequests => ApplyFilters();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPurchaseRequests();
+    }
+
+    private async Task LoadPurchaseRequests()
+    {
+        loading = true;
+        try
+        {
+            purchaseRequests = (await PurchaseRequestService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading purchase requests: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<PurchaseRequest> ApplyFilters()
+    {
+        var filtered = purchaseRequests.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            filtered = filtered.Where(pr =>
+                (pr.Number?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (pr.Description?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (pr.Notes?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Apply status filter
+        filtered = statusFilter switch
+        {
+            "completed" => filtered.Where(pr => pr.IsCompleted),
+            "pending" => filtered.Where(pr => !pr.IsCompleted),
+            _ => filtered
+        };
+
+        return filtered.OrderByDescending(pr => pr.RequestDate);
+    }
+
+    private async Task OpenCreatePurchaseRequestDialog()
+    {
+        var dialog = await DialogService.ShowAsync<PurchaseRequestDialog>("Create Purchase Request");
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadPurchaseRequests();
+        }
+    }
+
+    private async Task EditPurchaseRequest(PurchaseRequest purchaseRequest)
+    {
+        var parameters = new DialogParameters<PurchaseRequestDialog>
+        {
+            { x => x.PurchaseRequest, purchaseRequest }
+        };
+
+        var dialog = await DialogService.ShowAsync<PurchaseRequestDialog>("Edit Purchase Request", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadPurchaseRequests();
+        }
+    }
+
+    private async Task ManageSupplierSelection(PurchaseRequest purchaseRequest)
+    {
+        var parameters = new DialogParameters<SupplierSelectionDialog>
+        {
+            { x => x.PurchaseRequestId, purchaseRequest.Id }
+        };
+
+        var dialog = await DialogService.ShowAsync<SupplierSelectionDialog>("Manage Supplier Selection", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadPurchaseRequests();
+        }
+    }
+
+    private async Task CompletePurchaseRequest(PurchaseRequest purchaseRequest)
+    {
+        try
+        {
+            await PurchaseRequestService.CompleteAsync(purchaseRequest.Id);
+            Snackbar.Add($"Purchase Request {purchaseRequest.Number} completed successfully", Severity.Success);
+            await LoadPurchaseRequests();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error completing purchase request: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ViewPurchaseRequest(PurchaseRequest purchaseRequest)
+    {
+        var linesWithWinners = purchaseRequest.Lines.Count(l => l.WinnerSupplierId != null);
+        var totalLines = purchaseRequest.Lines.Count;
+
+        var message = $"Purchase Request: {purchaseRequest.Number}\n" +
+                     $"Description: {purchaseRequest.Description}\n" +
+                     $"Request Date: {purchaseRequest.RequestDate:yyyy-MM-dd}\n" +
+                     $"Required Date: {purchaseRequest.RequiredDate?.ToString("yyyy-MM-dd") ?? "Not set"}\n" +
+                     $"Status: {(purchaseRequest.IsCompleted ? "Completed" : "Pending")}\n" +
+                     $"Lines: {totalLines}\n" +
+                     $"Winners Selected: {linesWithWinners}/{totalLines}\n" +
+                     $"Project: {purchaseRequest.Project?.Name ?? "N/A"}\n" +
+                     $"Notes: {purchaseRequest.Notes}";
+
+        Snackbar.Add(message, Severity.Info, config =>
+        {
+            config.RequireInteraction = true;
+            config.ShowCloseIcon = true;
+            config.VisibleStateDuration = 15000;
+        });
+    }
+}

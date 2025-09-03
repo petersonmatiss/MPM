@@ -1,0 +1,403 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPurchaseRequestService PurchaseRequestService
+@inject ISupplierQuoteService SupplierQuoteService
+@inject ISupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto;">
+            @if (purchaseRequest != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12">
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <div>
+                                <MudText Variant="Variant.h5">Supplier Selection</MudText>
+                                <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                    @purchaseRequest.Number - @purchaseRequest.Description
+                                </MudText>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <MudSelect @bind-Value="selectedSupplierId" Label="Choose supplier for all lines" 
+                                          Style="min-width: 200px;" T="int?" Clearable="true">
+                                    @foreach (var supplier in availableSuppliers)
+                                    {
+                                        <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                                          OnClick="SetWinnerForAllLines" 
+                                          Disabled="@(selectedSupplierId == null || !CanSetWinnerForAll)"
+                                          StartIcon="Icons.Material.Filled.Assignment">
+                                    Apply to All
+                                </MudButton>
+                            </div>
+                        </div>
+                    </MudItem>
+
+                    <!-- Summary Cards -->
+                    <MudItem xs="12">
+                        <div class="d-flex gap-4 mb-4 flex-wrap">
+                            <MudCard Elevation="2" Style="min-width: 180px;">
+                                <MudCardContent Class="pa-3">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="Icons.Material.Filled.FormatListNumbered" Color="Color.Primary" />
+                                        <div>
+                                            <MudText Variant="Variant.h6">@purchaseRequest.Lines.Count</MudText>
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Total Lines</MudText>
+                                        </div>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                            
+                            <MudCard Elevation="2" Style="min-width: 180px;">
+                                <MudCardContent Class="pa-3">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                                        <div>
+                                            <MudText Variant="Variant.h6">@linesWithWinners</MudText>
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Winners Selected</MudText>
+                                        </div>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                            
+                            <MudCard Elevation="2" Style="min-width: 180px;">
+                                <MudCardContent Class="pa-3">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="Icons.Material.Filled.Warning" Color="Color.Warning" />
+                                        <div>
+                                            <MudText Variant="Variant.h6">@linesWithoutWinners</MudText>
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Pending</MudText>
+                                        </div>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+
+                            @if (supplierTotals.Any())
+                            {
+                                <MudCard Elevation="2" Style="min-width: 200px;">
+                                    <MudCardContent Class="pa-3">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="Icons.Material.Filled.Euro" Color="Color.Info" />
+                                            <div>
+                                                <MudText Variant="Variant.h6">€@supplierTotals.Values.Sum():F2</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">Total Value</MudText>
+                                            </div>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </div>
+                    </MudItem>
+
+                    <!-- Lines with Supplier Selection -->
+                    <MudItem xs="12">
+                        @foreach (var line in purchaseRequest.Lines)
+                        {
+                            <MudCard Elevation="2" Class="mb-4">
+                                <MudCardContent>
+                                    <div class="d-flex justify-space-between align-center mb-3">
+                                        <div>
+                                            <MudText Variant="Variant.h6">
+                                                @line.Material?.Grade - @line.Material?.Dimension
+                                            </MudText>
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                                Quantity: @line.Quantity @line.UnitOfMeasure
+                                                @if (line.RequiredDate.HasValue)
+                                                {
+                                                    <span> | Required: @line.RequiredDate.Value.ToString("yyyy-MM-dd")</span>
+                                                }
+                                            </MudText>
+                                        </div>
+                                        
+                                        @if (line.WinnerSupplierId.HasValue)
+                                        {
+                                            <MudChip Color="Color.Success" Icon="Icons.Material.Filled.CheckCircle" T="string">
+                                                Winner: @line.WinnerSupplier?.Name
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Color="Color.Warning" Icon="Icons.Material.Filled.Schedule" T="string">
+                                                No Winner Selected
+                                            </MudChip>
+                                        }
+                                    </div>
+
+                                    @if (line.SupplierQuotes.Any())
+                                    {
+                                        <MudDataGrid Items="@line.SupplierQuotes" Dense="true" Hover="true">
+                                            <Columns>
+                                                <TemplateColumn Title="Supplier" Sortable="false">
+                                                    <CellTemplate>
+                                                        <div class="d-flex align-center gap-2">
+                                                            <MudText>@context.Item.SupplierQuote?.Supplier?.Name</MudText>
+                                                            @if (context.Item.SupplierQuote?.SupplierId == line.WinnerSupplierId)
+                                                            {
+                                                                <MudIcon Icon="Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                                            }
+                                                        </div>
+                                                    </CellTemplate>
+                                                </TemplateColumn>
+                                                
+                                                <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="F4" />
+                                                
+                                                <TemplateColumn Title="Total Price" Sortable="true" SortBy="@(x => x.TotalPrice)">
+                                                    <CellTemplate>
+                                                        <MudText>€@context.Item.TotalPrice.ToString("F2")</MudText>
+                                                    </CellTemplate>
+                                                </TemplateColumn>
+                                                
+                                                <PropertyColumn Property="x => x.LeadTimeDays" Title="Lead Time (days)" />
+                                                
+                                                <TemplateColumn Title="Available" Sortable="false">
+                                                    <CellTemplate>
+                                                        <MudIcon Icon="@(context.Item.IsAvailable ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
+                                                                Color="@(context.Item.IsAvailable ? Color.Success : Color.Error)" 
+                                                                Size="Size.Small" />
+                                                    </CellTemplate>
+                                                </TemplateColumn>
+
+                                                <TemplateColumn Title="Actions" Sortable="false">
+                                                    <CellTemplate>
+                                                        @if (context.Item.IsAvailable)
+                                                        {
+                                                            @if (context.Item.SupplierQuote?.SupplierId != line.WinnerSupplierId)
+                                                            {
+                                                                <MudButton Size="Size.Small" Color="Color.Primary" 
+                                                                          OnClick="@(() => SelectWinner(line, context.Item))"
+                                                                          StartIcon="Icons.Material.Filled.Star">
+                                                                    Select
+                                                                </MudButton>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudButton Size="Size.Small" Color="Color.Secondary" 
+                                                                          OnClick="@(() => ClearWinner(line))"
+                                                                          StartIcon="Icons.Material.Filled.Clear">
+                                                                    Clear
+                                                                </MudButton>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudText Variant="Variant.caption" Color="Color.Secondary">Not Available</MudText>
+                                                        }
+                                                    </CellTemplate>
+                                                </TemplateColumn>
+                                            </Columns>
+                                        </MudDataGrid>
+                                    }
+                                    else
+                                    {
+                                        <MudAlert Severity="Severity.Warning">
+                                            No supplier quotes available for this line. Please request quotes from suppliers.
+                                        </MudAlert>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    </MudItem>
+
+                    <!-- Totals by Supplier -->
+                    @if (supplierTotals.Any())
+                    {
+                        <MudItem xs="12">
+                            <MudCard Elevation="2">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Variant="Variant.h6">Totals by Supplier</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudGrid>
+                                        @foreach (var supplierTotal in supplierTotals.OrderByDescending(st => st.Value))
+                                        {
+                                            var supplier = availableSuppliers.FirstOrDefault(s => s.Id == supplierTotal.Key);
+                                            <MudItem xs="12" sm="6" md="4">
+                                                <MudCard Elevation="1">
+                                                    <MudCardContent Class="pa-3">
+                                                        <div class="d-flex justify-space-between align-center">
+                                                            <MudText Variant="Variant.subtitle1">@supplier?.Name</MudText>
+                                                            <MudText Variant="Variant.h6" Color="Color.Primary">€@supplierTotal.Value.ToString("F2")</MudText>
+                                                        </div>
+                                                    </MudCardContent>
+                                                </MudCard>
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+            else
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton Color="Color.Success" OnClick="SaveAndClose" 
+                  Disabled="@(linesWithoutWinners > 0)"
+                  StartIcon="Icons.Material.Filled.Save">
+            @(linesWithoutWinners > 0 ? $"Complete Selection ({linesWithoutWinners} pending)" : "Save & Close")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int PurchaseRequestId { get; set; }
+
+    private PurchaseRequest? purchaseRequest;
+    private List<Supplier> availableSuppliers = new();
+    private Dictionary<int, decimal> supplierTotals = new();
+    private int? selectedSupplierId;
+
+    private int linesWithWinners => purchaseRequest?.Lines.Count(l => l.WinnerSupplierId != null) ?? 0;
+    private int linesWithoutWinners => purchaseRequest?.Lines.Count(l => l.WinnerSupplierId == null) ?? 0;
+
+    private bool CanSetWinnerForAll =>
+        selectedSupplierId.HasValue && 
+        purchaseRequest != null &&
+        purchaseRequest.Lines.All(line => 
+            line.SupplierQuotes.Any(q => q.SupplierQuote?.SupplierId == selectedSupplierId.Value && q.IsAvailable));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            purchaseRequest = await PurchaseRequestService.GetByIdAsync(PurchaseRequestId);
+            
+            if (purchaseRequest == null)
+            {
+                Snackbar.Add("Purchase request not found", Severity.Error);
+                return;
+            }
+
+            // Get all suppliers that have quotes for this purchase request
+            var supplierQuotes = await SupplierQuoteService.GetByPurchaseRequestAsync(PurchaseRequestId);
+            var supplierIds = supplierQuotes.Select(sq => sq.SupplierId).Distinct().ToList();
+            
+            // Load all suppliers for the bulk selection dropdown
+            var allSuppliers = await SupplierService.GetAllAsync();
+            availableSuppliers = allSuppliers.Where(s => supplierIds.Contains(s.Id)).ToList();
+
+            // Calculate totals by supplier
+            await UpdateSupplierTotals();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UpdateSupplierTotals()
+    {
+        if (purchaseRequest != null)
+        {
+            supplierTotals = await PurchaseRequestService.GetTotalsBySupplierAsync(purchaseRequest.Id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectWinner(PurchaseRequestLine line, SupplierQuoteLine quoteLine)
+    {
+        try
+        {
+            if (quoteLine.SupplierQuote?.SupplierId != null)
+            {
+                await PurchaseRequestService.SetWinnerForLineAsync(
+                    line.Id, 
+                    quoteLine.SupplierQuote.SupplierId, 
+                    quoteLine.Id);
+
+                // Refresh data
+                await LoadData();
+                
+                Snackbar.Add($"Winner selected for line {line.Material?.Grade}", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting winner: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ClearWinner(PurchaseRequestLine line)
+    {
+        try
+        {
+            await PurchaseRequestService.SetWinnerForLineAsync(line.Id, null, null);
+
+            // Refresh data
+            await LoadData();
+            
+            Snackbar.Add($"Winner cleared for line {line.Material?.Grade}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error clearing winner: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SetWinnerForAllLines()
+    {
+        if (selectedSupplierId == null || purchaseRequest == null)
+            return;
+
+        try
+        {
+            await PurchaseRequestService.SetWinnerForAllLinesAsync(purchaseRequest.Id, selectedSupplierId.Value);
+
+            // Refresh data
+            await LoadData();
+            
+            var supplier = availableSuppliers.FirstOrDefault(s => s.Id == selectedSupplierId.Value);
+            Snackbar.Add($"Selected {supplier?.Name} as winner for all lines", Severity.Success);
+            
+            selectedSupplierId = null; // Clear selection
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error setting winner for all lines: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void SaveAndClose()
+    {
+        if (linesWithoutWinners == 0)
+        {
+            try
+            {
+                // Optionally complete the purchase request if all winners are selected
+                // await PurchaseRequestService.CompleteAsync(PurchaseRequestId);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error completing purchase request: {ex.Message}", Severity.Error);
+            }
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(false));
+        }
+    }
+}
