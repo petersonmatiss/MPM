@@ -1,0 +1,502 @@
+@using Mpm.Domain.Entities
+@using Mpm.Domain
+@using Mpm.Services
+@using Mpm.Services.DTOs
+@inject IPriceRequestService PriceRequestService
+@inject ISteelGradeService SteelGradeService
+@inject IProfileTypeService ProfileTypeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 700px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">
+                            @(IsEdit ? "Edit Price Request" : "Create Price Request")
+                        </MudText>
+                    </MudItem>
+
+                    <!-- Basic Information -->
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="priceRequest.Number" Label="Request Number" Required="true"
+                                     RequiredError="Request number is required" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="priceRequest.Title" Label="Title" Required="true"
+                                     RequiredError="Title is required" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="priceRequest.Description" Label="Description" Lines="3"
+                                     Placeholder="Detailed description of the request" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudDatePicker @bind-Date="requestDate" Label="Request Date" Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudDatePicker @bind-Date="requiredByDate" Label="Required By Date" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudSelect @bind-Value="priceRequest.Currency" Label="Currency" Required="true">
+                            @foreach (var currency in Constants.Currency.ValidCurrencies)
+                            {
+                                <MudSelectItem Value="currency">@currency</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Lines Section -->
+                    <MudItem xs="12">
+                        <MudDivider Class="my-4" />
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Variant="Variant.H6">Request Lines</MudText>
+                            <MudButton Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" 
+                                      OnClick="AddLine">
+                                Add Line
+                            </MudButton>
+                        </div>
+
+                        @if (priceRequest.Lines.Any())
+                        {
+                            <MudDataGrid Items="@priceRequest.Lines" T="CreatePriceRequestLineDto" 
+                                        EditMode="DataGridEditMode.Cell" 
+                                        CommittedItemChanges="@OnLineChanged"
+                                        Hover="true" 
+                                        Dense="true">
+                                <Columns>
+                                    <PropertyColumn Property="x => x.LineNumber" Title="#" Editable="false" />
+                                    
+                                    <PropertyColumn Property="x => x.MaterialType" Title="Type">
+                                        <EditTemplate>
+                                            <MudSelect Value="context.Item.MaterialType" T="MaterialType"
+                                                      Immediate="true" 
+                                                      ValueChanged="@((MaterialType newType) => OnMaterialTypeChanged(context.Item, newType))">
+                                                <MudSelectItem Value="MaterialType.Sheet">Sheet</MudSelectItem>
+                                                <MudSelectItem Value="MaterialType.Profile">Profile</MudSelectItem>
+                                            </MudSelect>
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.Description" Title="Description">
+                                        <EditTemplate>
+                                            <MudTextField @bind-Value="context.Item.Description" Required="true" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.SteelGradeId" Title="Steel Grade">
+                                        <CellTemplate>
+                                            @{
+                                                var grade = steelGrades.FirstOrDefault(g => g.Id == context.Item.SteelGradeId);
+                                                @(grade?.Code ?? "-")
+                                            }
+                                        </CellTemplate>
+                                        <EditTemplate>
+                                            <MudSelect @bind-Value="context.Item.SteelGradeId" T="int?" Clearable="true">
+                                                @foreach (var grade in steelGrades)
+                                                {
+                                                    <MudSelectItem Value="@((int?)grade.Id)">@grade.Code - @grade.Name</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.ProfileTypeId" Title="Profile Type">
+                                        <CellTemplate>
+                                            @{
+                                                var profileType = profileTypes.FirstOrDefault(p => p.Id == context.Item.ProfileTypeId);
+                                                @(profileType?.Code ?? "-")
+                                            }
+                                        </CellTemplate>
+                                        <EditTemplate>
+                                            <MudSelect @bind-Value="context.Item.ProfileTypeId" T="int?" Clearable="true">
+                                                @foreach (var profile in profileTypes)
+                                                {
+                                                    <MudSelectItem Value="@((int?)profile.Id)">@profile.Code</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.LengthMm" Title="Length (mm)">
+                                        <EditTemplate>
+                                            <MudNumericField @bind-Value="context.Item.LengthMm" T="int?" Min="1" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.WidthMm" Title="Width (mm)">
+                                        <EditTemplate>
+                                            <MudNumericField @bind-Value="context.Item.WidthMm" T="int?" Min="1" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.ThicknessMm" Title="Thickness (mm)">
+                                        <EditTemplate>
+                                            <MudNumericField @bind-Value="context.Item.ThicknessMm" T="int?" Min="1" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.Pieces" Title="Pieces">
+                                        <EditTemplate>
+                                            <MudNumericField Value="context.Item.Pieces" T="int?" Min="1" 
+                                                           ValueChanged="@((int? pieces) => UpdateLineQuantity(context.Item, pieces))" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.PieceLengthMm" Title="Length/Piece (mm)">
+                                        <EditTemplate>
+                                            <MudNumericField Value="context.Item.PieceLengthMm" T="int?" Min="1" 
+                                                           ValueChanged="@((int? length) => UpdateLineQuantity(context.Item, null, length))" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.Quantity" Title="Quantity">
+                                        <EditTemplate>
+                                            <MudNumericField @bind-Value="context.Item.Quantity" T="decimal" Min="0.01m" Required="true" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.UnitOfMeasure" Title="Unit">
+                                        <EditTemplate>
+                                            <MudSelect @bind-Value="context.Item.UnitOfMeasure" T="string">
+                                                <MudSelectItem Value="@Constants.UnitOfMeasure.Kilogram">kg</MudSelectItem>
+                                                <MudSelectItem Value="@Constants.UnitOfMeasure.Meter">m</MudSelectItem>
+                                                <MudSelectItem Value="@Constants.UnitOfMeasure.Pieces">pcs</MudSelectItem>
+                                            </MudSelect>
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.EstimatedUnitPrice" Title="Est. Unit Price">
+                                        <CellTemplate>
+                                            @context.Item.EstimatedUnitPrice.ToString("C2")
+                                        </CellTemplate>
+                                        <EditTemplate>
+                                            <MudNumericField Value="context.Item.EstimatedUnitPrice" T="decimal" Min="0" 
+                                                           ValueChanged="@((decimal price) => UpdateLineTotalPrice(context.Item, price))" />
+                                        </EditTemplate>
+                                    </PropertyColumn>
+
+                                    <PropertyColumn Property="x => x.EstimatedTotalPrice" Title="Est. Total Price" Editable="false">
+                                        <CellTemplate>
+                                            @context.Item.EstimatedTotalPrice.ToString("C2")
+                                        </CellTemplate>
+                                    </PropertyColumn>
+
+                                    <TemplateColumn Title="Actions" Sortable="false">
+                                        <CellTemplate>
+                                            <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                          Size="Size.Small" OnClick="@(() => RemoveLine(context.Item))" />
+                                        </CellTemplate>
+                                    </TemplateColumn>
+                                </Columns>
+                            </MudDataGrid>
+
+                            <!-- Totals Section -->
+                            <MudCard Class="mt-4">
+                                <MudCardContent>
+                                    <MudGrid>
+                                        <MudItem xs="12" md="4">
+                                            <MudText><strong>Total Lines:</strong> @priceRequest.Lines.Count</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" md="4">
+                                            <MudText><strong>Total Quantity:</strong> @priceRequest.Lines.Sum(l => l.Quantity).ToString("N2")</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" md="4">
+                                            <MudText><strong>Total Estimated Value:</strong> @priceRequest.Lines.Sum(l => l.EstimatedTotalPrice).ToString("C2")</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary" Class="text-center">No lines added yet. Click "Add Line" to get started.</MudText>
+                        }
+                    </MudItem>
+
+                    <!-- Notes -->
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="priceRequest.Notes" Label="Notes" Lines="3" 
+                                     Placeholder="Additional notes or comments" />
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid || !HasValidLines())">
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PriceRequest? PriceRequest { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private bool hasUnsavedChanges = false;
+
+    private CreatePriceRequestDto priceRequest = new();
+    private List<SteelGrade> steelGrades = new();
+    private List<ProfileType> profileTypes = new();
+    
+    private DateTime? requestDate;
+    private DateTime? requiredByDate;
+
+    private bool IsEdit => PriceRequest is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupData();
+        
+        if (IsEdit && PriceRequest is not null)
+        {
+            MapFromEntity(PriceRequest);
+        }
+        else
+        {
+            priceRequest.Currency = Constants.Currency.EUR;
+            priceRequest.RequestDate = DateTime.UtcNow;
+            requestDate = priceRequest.RequestDate;
+            
+            // Auto-generate request number
+            priceRequest.Number = $"PR{DateTime.Now.Year:D4}-DRAFT";
+        }
+    }
+
+    private async Task LoadLookupData()
+    {
+        steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+        profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
+    }
+
+    private void MapFromEntity(PriceRequest entity)
+    {
+        priceRequest = new CreatePriceRequestDto
+        {
+            Number = entity.Number,
+            Title = entity.Title,
+            Description = entity.Description,
+            Currency = entity.Currency,
+            RequestDate = entity.RequestDate,
+            RequiredByDate = entity.RequiredByDate,
+            Notes = entity.Notes,
+            Lines = entity.Lines.Select(l => new CreatePriceRequestLineDto
+            {
+                MaterialType = l.MaterialType,
+                Description = l.Description,
+                SteelGradeId = l.SteelGradeId,
+                ProfileTypeId = l.ProfileTypeId,
+                LengthMm = l.LengthMm,
+                WidthMm = l.WidthMm,
+                ThicknessMm = l.ThicknessMm,
+                HeightMm = l.HeightMm,
+                DiameterMm = l.DiameterMm,
+                Quantity = l.Quantity,
+                UnitOfMeasure = l.UnitOfMeasure,
+                Pieces = l.Pieces,
+                PieceLengthMm = l.PieceLengthMm,
+                Surface = l.Surface,
+                EstimatedUnitPrice = l.EstimatedUnitPrice,
+                EstimatedTotalPrice = l.EstimatedTotalPrice,
+                EstimatedWeight = l.EstimatedWeight,
+                Notes = l.Notes,
+                LineNumber = l.LineNumber
+            }).ToList()
+        };
+
+        requestDate = priceRequest.RequestDate;
+        requiredByDate = priceRequest.RequiredByDate;
+    }
+
+    private void AddLine()
+    {
+        var newLine = new CreatePriceRequestLineDto
+        {
+            MaterialType = MaterialType.Sheet,
+            Description = "",
+            UnitOfMeasure = Constants.UnitOfMeasure.Kilogram,
+            Quantity = 1,
+            LineNumber = priceRequest.Lines.Count + 1
+        };
+        
+        priceRequest.Lines.Add(newLine);
+        hasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    private void RemoveLine(CreatePriceRequestLineDto line)
+    {
+        priceRequest.Lines.Remove(line);
+        
+        // Renumber lines
+        for (int i = 0; i < priceRequest.Lines.Count; i++)
+        {
+            priceRequest.Lines[i].LineNumber = i + 1;
+        }
+        
+        hasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    private void OnMaterialTypeChanged(CreatePriceRequestLineDto line, MaterialType newType)
+    {
+        line.MaterialType = newType;
+        
+        // Clear type-specific fields when switching
+        if (newType == MaterialType.Sheet)
+        {
+            line.ProfileTypeId = null;
+            line.Pieces = null;
+            line.PieceLengthMm = null;
+            line.HeightMm = null;
+            line.DiameterMm = null;
+        }
+        else
+        {
+            line.LengthMm = null;
+            line.WidthMm = null;
+        }
+        
+        hasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    private void UpdateLineQuantity(CreatePriceRequestLineDto line, int? pieces = null, int? pieceLength = null)
+    {
+        if (pieces.HasValue) line.Pieces = pieces;
+        if (pieceLength.HasValue) line.PieceLengthMm = pieceLength;
+        
+        // For profiles, calculate total quantity based on pieces and length
+        if (line.MaterialType == MaterialType.Profile && line.Pieces.HasValue && line.PieceLengthMm.HasValue)
+        {
+            line.Quantity = line.Pieces.Value * (line.PieceLengthMm.Value / 1000m); // Convert mm to meters
+        }
+        
+        UpdateLineTotalPrice(line, line.EstimatedUnitPrice);
+        hasUnsavedChanges = true;
+    }
+
+    private void UpdateLineTotalPrice(CreatePriceRequestLineDto line, decimal unitPrice)
+    {
+        line.EstimatedUnitPrice = unitPrice;
+        line.EstimatedTotalPrice = line.Quantity * unitPrice;
+        hasUnsavedChanges = true;
+    }
+
+    private void OnLineChanged(CreatePriceRequestLineDto line)
+    {
+        hasUnsavedChanges = true;
+        UpdateLineTotalPrice(line, line.EstimatedUnitPrice);
+    }
+
+    private bool HasValidLines()
+    {
+        return priceRequest.Lines.Any() && 
+               priceRequest.Lines.All(l => !string.IsNullOrWhiteSpace(l.Description) && l.Quantity > 0);
+    }
+
+    private async Task Submit()
+    {
+        priceRequest.RequestDate = requestDate ?? DateTime.UtcNow;
+        priceRequest.RequiredByDate = requiredByDate;
+
+        await form.Validate();
+        if (form.IsValid && HasValidLines())
+        {
+            try
+            {
+                PriceRequest result;
+                
+                if (IsEdit)
+                {
+                    var updateDto = new UpdatePriceRequestDto
+                    {
+                        Id = PriceRequest!.Id,
+                        Number = priceRequest.Number,
+                        Title = priceRequest.Title,
+                        Description = priceRequest.Description,
+                        Currency = priceRequest.Currency,
+                        RequestDate = priceRequest.RequestDate,
+                        RequiredByDate = priceRequest.RequiredByDate,
+                        Notes = priceRequest.Notes,
+                        Lines = priceRequest.Lines,
+                        Status = PriceRequest.Status
+                    };
+                    
+                    // Convert DTO to entity
+                    var entity = MapToEntity(updateDto);
+                    entity.Id = PriceRequest.Id;
+                    
+                    result = await PriceRequestService.UpdateAsync(entity);
+                }
+                else
+                {
+                    var entity = MapToEntity(priceRequest);
+                    result = await PriceRequestService.CreateAsync(entity);
+                }
+                
+                hasUnsavedChanges = false;
+                MudDialog.Close(DialogResult.Ok(result));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving price request: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private PriceRequest MapToEntity(CreatePriceRequestDto dto)
+    {
+        return new PriceRequest
+        {
+            Number = dto.Number,
+            Title = dto.Title,
+            Description = dto.Description,
+            Currency = dto.Currency,
+            RequestDate = dto.RequestDate,
+            RequiredByDate = dto.RequiredByDate,
+            Notes = dto.Notes,
+            Lines = dto.Lines.Select(l => new PriceRequestLine
+            {
+                MaterialType = l.MaterialType,
+                Description = l.Description,
+                SteelGradeId = l.SteelGradeId,
+                ProfileTypeId = l.ProfileTypeId,
+                LengthMm = l.LengthMm,
+                WidthMm = l.WidthMm,
+                ThicknessMm = l.ThicknessMm,
+                HeightMm = l.HeightMm,
+                DiameterMm = l.DiameterMm,
+                Quantity = l.Quantity,
+                UnitOfMeasure = l.UnitOfMeasure,
+                Pieces = l.Pieces,
+                PieceLengthMm = l.PieceLengthMm,
+                Surface = l.Surface,
+                EstimatedUnitPrice = l.EstimatedUnitPrice,
+                EstimatedTotalPrice = l.EstimatedTotalPrice,
+                EstimatedWeight = l.EstimatedWeight,
+                Notes = l.Notes,
+                LineNumber = l.LineNumber
+            }).ToList()
+        };
+    }
+
+    private void Cancel() 
+    {
+        if (hasUnsavedChanges)
+        {
+            // TODO: Show confirmation dialog for unsaved changes
+        }
+        MudDialog.Cancel();
+    }
+}

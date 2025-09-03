@@ -1,0 +1,228 @@
+@page "/price-requests"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IPriceRequestService PriceRequestService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Price Requests</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Variant="Variant.h5">Price Requests</MudText>
+                            <MudButton Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" 
+                                      OnClick="OpenCreateDialog">
+                                New Price Request
+                            </MudButton>
+                        </div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <!-- Filters -->
+                    <MudGrid Class="mb-4">
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="searchString" Label="Search" 
+                                         Placeholder="Search by number, title, or description"
+                                         Adornment="Adornment.Start" 
+                                         AdornmentIcon="Icons.Material.Filled.Search"
+                                         Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect @bind-Value="statusFilter" Label="Status" T="PriceRequestStatus?" Clearable="true">
+                                <MudSelectItem Value="@((PriceRequestStatus?)PriceRequestStatus.Draft)">Draft</MudSelectItem>
+                                <MudSelectItem Value="@((PriceRequestStatus?)PriceRequestStatus.Sent)">Sent</MudSelectItem>
+                                <MudSelectItem Value="@((PriceRequestStatus?)PriceRequestStatus.QuotesReceived)">Quotes Received</MudSelectItem>
+                                <MudSelectItem Value="@((PriceRequestStatus?)PriceRequestStatus.Completed)">Completed</MudSelectItem>
+                                <MudSelectItem Value="@((PriceRequestStatus?)PriceRequestStatus.Cancelled)">Cancelled</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudDatePicker @bind-Date="dateFromFilter" Label="From Date" Clearable="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="2">
+                            <MudButton Color="Color.Secondary" StartIcon="Icons.Material.Filled.Clear" 
+                                      OnClick="ClearFilters" FullWidth="true">
+                                Clear
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- Data Grid -->
+                    <MudDataGrid Items="@filteredPriceRequests" T="PriceRequest" Filterable="true" 
+                                SortMode="SortMode.Multiple" Loading="@loading" RowsPerPage="25">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Number" Title="Number" />
+                            <PropertyColumn Property="x => x.Title" Title="Title" />
+                            <PropertyColumn Property="x => x.Status" Title="Status">
+                                <CellTemplate>
+                                    <MudChip Color="@GetStatusColor(context.Item.Status)" Size="Size.Small">
+                                        @context.Item.Status
+                                    </MudChip>
+                                </CellTemplate>
+                            </PropertyColumn>
+                            <PropertyColumn Property="x => x.RequestDate" Title="Request Date" Format="dd/MM/yyyy" />
+                            <PropertyColumn Property="x => x.RequiredByDate" Title="Required By" Format="dd/MM/yyyy" />
+                            <PropertyColumn Property="x => x.Lines.Count" Title="Lines" />
+                            <PropertyColumn Property="x => x.TotalQuantity" Title="Total Qty" Format="N2" />
+                            <PropertyColumn Property="x => x.EstimatedTotalValue" Title="Est. Value" Format="C2" />
+                            <PropertyColumn Property="x => x.Currency" Title="Currency" />
+                            <TemplateColumn Title="Actions" Sortable="false">
+                                <CellTemplate>
+                                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Text">
+                                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Visibility" 
+                                                      OnClick="@(() => ViewPriceRequest(context.Item))" />
+                                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
+                                                      OnClick="@(() => OpenEditDialog(context.Item))" />
+                                        <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Delete" 
+                                                      Color="Color.Error" 
+                                                      OnClick="@(() => DeletePriceRequest(context.Item))"
+                                                      Disabled="@(context.Item.Status != PriceRequestStatus.Draft)" />
+                                    </MudButtonGroup>
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                        <PagerContent>
+                            <MudDataGridPager T="PriceRequest" />
+                        </PagerContent>
+                    </MudDataGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<PriceRequest> priceRequests = new();
+    private bool loading = true;
+    private string searchString = "";
+    private PriceRequestStatus? statusFilter;
+    private DateTime? dateFromFilter;
+
+    private IEnumerable<PriceRequest> filteredPriceRequests => FilterPriceRequests(priceRequests);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPriceRequests();
+    }
+
+    private async Task LoadPriceRequests()
+    {
+        loading = true;
+        try
+        {
+            priceRequests = (await PriceRequestService.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading price requests: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<PriceRequest> FilterPriceRequests(IEnumerable<PriceRequest> sourcePriceRequests)
+    {
+        return sourcePriceRequests.Where(pr =>
+        {
+            bool matchesSearch = string.IsNullOrEmpty(searchString) ||
+                               pr.Number.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               pr.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                               pr.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+
+            bool matchesStatus = !statusFilter.HasValue || pr.Status == statusFilter.Value;
+            
+            bool matchesDate = !dateFromFilter.HasValue || pr.RequestDate.Date >= dateFromFilter.Value.Date;
+
+            return matchesSearch && matchesStatus && matchesDate;
+        }).ToList();
+    }
+
+    private Color GetStatusColor(PriceRequestStatus status)
+    {
+        return status switch
+        {
+            PriceRequestStatus.Draft => Color.Default,
+            PriceRequestStatus.Sent => Color.Info,
+            PriceRequestStatus.QuotesReceived => Color.Warning,
+            PriceRequestStatus.Completed => Color.Success,
+            PriceRequestStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<PriceRequestDialog>
+        {
+            { x => x.PriceRequest, null }
+        };
+
+        var dialog = await DialogService.ShowAsync<PriceRequestDialog>("Create Price Request", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadPriceRequests();
+            Snackbar.Add("Price request created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(PriceRequest priceRequest)
+    {
+        var parameters = new DialogParameters<PriceRequestDialog>
+        {
+            { x => x.PriceRequest, priceRequest }
+        };
+
+        var dialog = await DialogService.ShowAsync<PriceRequestDialog>("Edit Price Request", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadPriceRequests();
+            Snackbar.Add("Price request updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task ViewPriceRequest(PriceRequest priceRequest)
+    {
+        // TODO: Implement view-only dialog or navigate to detail page
+        await OpenEditDialog(priceRequest);
+    }
+
+    private async Task DeletePriceRequest(PriceRequest priceRequest)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Delete Price Request",
+            $"Are you sure you want to delete price request '{priceRequest.Number}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await PriceRequestService.DeleteAsync(priceRequest.Id);
+                await LoadPriceRequests();
+                Snackbar.Add("Price request deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting price request: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void ClearFilters()
+    {
+        searchString = "";
+        statusFilter = null;
+        dateFromFilter = null;
+    }
+}

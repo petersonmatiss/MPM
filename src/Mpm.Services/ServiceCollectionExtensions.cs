@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IQuotationService, QuotationService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+        services.AddScoped<IPriceRequestService, PriceRequestService>();
         services.AddScoped<ISheetService, SheetService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<ISteelGradeService, SteelGradeService>();

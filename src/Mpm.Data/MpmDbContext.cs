@@ -56,6 +56,10 @@ public class MpmDbContext : DbContext
     public DbSet<ProfileUsage> ProfileUsages { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    
+    // Price Request entities
+    public DbSet<PriceRequest> PriceRequests { get; set; }
+    public DbSet<PriceRequestLine> PriceRequestLines { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +104,10 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<TimeLog>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Price Request entities
+        modelBuilder.Entity<PriceRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
 
         // Configure precision for decimal properties
         modelBuilder.Entity<BomItem>()
@@ -198,6 +206,10 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<TimeLog>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<Notification>().Property(e => e.RowVersion).IsRowVersion();
+        
+        // Price Request entities
+        modelBuilder.Entity<PriceRequest>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestLine>().Property(e => e.RowVersion).IsRowVersion();
 
         // Configure string lengths
         modelBuilder.Entity<Invoice>()

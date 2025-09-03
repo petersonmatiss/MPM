@@ -58,6 +58,18 @@ public interface IPurchaseOrderService
     Task<IEnumerable<PurchaseOrder>> GetBySupplierAsync(int supplierId);
 }
 
+public interface IPriceRequestService
+{
+    Task<IEnumerable<PriceRequest>> GetAllAsync();
+    Task<PriceRequest?> GetByIdAsync(int id);
+    Task<PriceRequest> CreateAsync(PriceRequest priceRequest);
+    Task<PriceRequest> UpdateAsync(PriceRequest priceRequest);
+    Task DeleteAsync(int id);
+    Task<PriceRequest> UpdateStatusAsync(int id, PriceRequestStatus status);
+    Task<IEnumerable<PriceRequest>> GetByStatusAsync(PriceRequestStatus status);
+    Task<PriceRequest> CalculateTotalsAsync(int id);
+}
+
 public class MaterialService : IMaterialService
 {
     private readonly MpmDbContext _context;
@@ -393,6 +405,128 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Include(i => i.Project)
             .OrderBy(i => i.ArrivalDate)
             .ToListAsync();
+    }
+}
+
+public class PriceRequestService : IPriceRequestService
+{
+    private readonly MpmDbContext _context;
+
+    public PriceRequestService(MpmDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<IEnumerable<PriceRequest>> GetAllAsync()
+    {
+        return await _context.PriceRequests
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
+            .OrderByDescending(pr => pr.RequestDate)
+            .ToListAsync();
+    }
+
+    public async Task<PriceRequest?> GetByIdAsync(int id)
+    {
+        return await _context.PriceRequests
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
+            .FirstOrDefaultAsync(pr => pr.Id == id);
+    }
+
+    public async Task<PriceRequest> CreateAsync(PriceRequest priceRequest)
+    {
+        // Auto-generate number if not provided
+        if (string.IsNullOrEmpty(priceRequest.Number))
+        {
+            var count = await _context.PriceRequests.CountAsync();
+            priceRequest.Number = $"PR{DateTime.Now.Year:D4}-{(count + 1):D4}";
+        }
+
+        // Set line numbers
+        for (int i = 0; i < priceRequest.Lines.Count; i++)
+        {
+            priceRequest.Lines.ElementAt(i).LineNumber = i + 1;
+        }
+
+        _context.PriceRequests.Add(priceRequest);
+        await _context.SaveChangesAsync();
+        
+        // Calculate totals after creation
+        await CalculateTotalsAsync(priceRequest.Id);
+        
+        return priceRequest;
+    }
+
+    public async Task<PriceRequest> UpdateAsync(PriceRequest priceRequest)
+    {
+        // Set line numbers
+        for (int i = 0; i < priceRequest.Lines.Count; i++)
+        {
+            priceRequest.Lines.ElementAt(i).LineNumber = i + 1;
+        }
+
+        _context.PriceRequests.Update(priceRequest);
+        await _context.SaveChangesAsync();
+        
+        // Recalculate totals after update
+        await CalculateTotalsAsync(priceRequest.Id);
+        
+        return priceRequest;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var priceRequest = await _context.PriceRequests.FindAsync(id);
+        if (priceRequest != null)
+        {
+            _context.PriceRequests.Remove(priceRequest);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<PriceRequest> UpdateStatusAsync(int id, PriceRequestStatus status)
+    {
+        var priceRequest = await _context.PriceRequests.FindAsync(id);
+        if (priceRequest == null)
+            throw new ArgumentException("Price request not found");
+
+        priceRequest.Status = status;
+        await _context.SaveChangesAsync();
+        return priceRequest;
+    }
+
+    public async Task<IEnumerable<PriceRequest>> GetByStatusAsync(PriceRequestStatus status)
+    {
+        return await _context.PriceRequests
+            .Where(pr => pr.Status == status)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.SteelGrade)
+            .Include(pr => pr.Lines)
+                .ThenInclude(l => l.ProfileType)
+            .OrderByDescending(pr => pr.RequestDate)
+            .ToListAsync();
+    }
+
+    public async Task<PriceRequest> CalculateTotalsAsync(int id)
+    {
+        var priceRequest = await GetByIdAsync(id);
+        if (priceRequest == null)
+            throw new ArgumentException("Price request not found");
+
+        // Calculate totals from lines
+        priceRequest.TotalQuantity = priceRequest.Lines.Sum(l => l.Quantity);
+        priceRequest.TotalWeight = priceRequest.Lines.Sum(l => l.EstimatedWeight);
+        priceRequest.EstimatedTotalValue = priceRequest.Lines.Sum(l => l.EstimatedTotalPrice);
+
+        _context.PriceRequests.Update(priceRequest);
+        await _context.SaveChangesAsync();
+        
+        return priceRequest;
     }
 }
 
