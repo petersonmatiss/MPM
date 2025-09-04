@@ -41,6 +41,8 @@ public class MpmDbContext : DbContext
     public DbSet<DoPHeat> DoPHeats { get; set; }
     public DbSet<Quotation> Quotations { get; set; }
     public DbSet<QuotationLine> QuotationLines { get; set; }
+    public DbSet<PriceRequest> PriceRequests { get; set; }
+    public DbSet<PriceRequestLine> PriceRequestLines { get; set; }
     
     // New entities for MPM
     public DbSet<Invoice> Invoices { get; set; }
@@ -85,6 +87,8 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<DoPHeat>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Quotation>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<QuotationLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequest>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PriceRequestLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         
         // New entities query filters
         modelBuilder.Entity<Invoice>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
@@ -187,6 +191,8 @@ public class MpmDbContext : DbContext
         // Configure concurrency tokens
         modelBuilder.Entity<Invoice>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<InvoiceLine>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequest>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PriceRequestLine>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<Sheet>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<Profile>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<ProfileRemnant>().Property(e => e.RowVersion).IsRowVersion();
@@ -206,6 +212,26 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<Invoice>()
             .Property(e => e.Currency)
             .HasMaxLength(3);
+        
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Number)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.Description)
+            .HasMaxLength(500);
+        modelBuilder.Entity<PriceRequest>()
+            .Property(e => e.RequestedBy)
+            .HasMaxLength(100);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.Dimensions)
+            .HasMaxLength(100);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.SteelGrade)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.ProfileType)
+            .HasMaxLength(50);
         
         modelBuilder.Entity<Sheet>()
             .Property(e => e.SheetId)
@@ -253,6 +279,10 @@ public class MpmDbContext : DbContext
             .HasPrecision(18, 2);
         modelBuilder.Entity<Invoice>()
             .Property(e => e.TotalAmount)
+            .HasPrecision(18, 2);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .Property(e => e.TotalLength)
             .HasPrecision(18, 2);
             
         modelBuilder.Entity<InvoiceLine>()
@@ -317,6 +347,10 @@ public class MpmDbContext : DbContext
             .HasIndex(e => new { e.TenantId, e.Number })
             .IsUnique();
             
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Number })
+            .IsUnique();
+            
         modelBuilder.Entity<Sheet>()
             .HasIndex(e => new { e.TenantId, e.SheetId })
             .IsUnique();
@@ -358,6 +392,9 @@ public class MpmDbContext : DbContext
             
         modelBuilder.Entity<Notification>()
             .HasIndex(e => new { e.TenantId, e.RecipientUserId, e.IsRead });
+            
+        modelBuilder.Entity<PriceRequest>()
+            .HasIndex(e => new { e.TenantId, e.Status, e.RequestDate });
 
         // Configure relationships
         modelBuilder.Entity<Invoice>()
@@ -370,6 +407,12 @@ public class MpmDbContext : DbContext
             .HasOne(e => e.Invoice)
             .WithMany(e => e.Lines)
             .HasForeignKey(e => e.InvoiceId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<PriceRequestLine>()
+            .HasOne(e => e.PriceRequest)
+            .WithMany(e => e.Lines)
+            .HasForeignKey(e => e.PriceRequestId)
             .OnDelete(DeleteBehavior.Cascade);
             
         modelBuilder.Entity<Sheet>()

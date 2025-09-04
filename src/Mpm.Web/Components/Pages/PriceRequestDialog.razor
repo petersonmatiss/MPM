@@ -1,0 +1,294 @@
+@inject IPriceRequestService PriceRequestService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-height: 700px; overflow-y: scroll">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Request Number" @bind-Value="priceRequest.Number" 
+                                     Required="true" RequiredError="Request number is required" 
+                                     Disabled="@IsEdit" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect Label="Status" @bind-Value="priceRequest.Status" Disabled="true">
+                            @foreach (var status in Enum.GetValues<PriceRequestStatus>())
+                            {
+                                <MudSelectItem Value="status">@status.ToString()</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="Request Date" @bind-Date="requestDate" Required="true"
+                                      RequiredError="Request date is required" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Requested By" @bind-Value="priceRequest.RequestedBy" 
+                                     Required="true" RequiredError="Requested by is required" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Description" @bind-Value="priceRequest.Description" 
+                                     Lines="2" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Notes" @bind-Value="priceRequest.Notes" 
+                                     Lines="3" />
+                    </MudItem>
+
+                    <!-- Line Items Section -->
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4" Elevation="1">
+                            <MudStack>
+                                <MudStack Row Justify="Justify.SpaceBetween">
+                                    <MudText Variant="Variant.h6">Line Items</MudText>
+                                    <MudButton Color="Color.Primary" StartIcon="Icons.Material.Filled.Add" 
+                                              OnClick="AddLine" Size="Size.Small">
+                                        Add Line
+                                    </MudButton>
+                                </MudStack>
+
+                                @if (priceRequest.Lines?.Any() == true)
+                                {
+                                    <MudGrid>
+                                        @foreach (var (line, index) in priceRequest.Lines.Select((l, i) => (l, i)))
+                                        {
+                                            <MudItem xs="12">
+                                                <MudCard Elevation="1" Class="pa-3 mb-2">
+                                                    <MudGrid>
+                                                        <MudItem xs="12" md="2">
+                                                            <MudSelect @bind-Value="line.MaterialType" Label="Material Type" Required="true" T="MaterialType">
+                                                                @foreach (var materialType in Enum.GetValues<MaterialType>())
+                                                                {
+                                                                    <MudSelectItem Value="materialType">@materialType.ToString()</MudSelectItem>
+                                                                }
+                                                            </MudSelect>
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="2">
+                                                            <MudTextField @bind-Value="line.Dimensions" Label="Dimensions" Required="true" 
+                                                                         RequiredError="Dimensions are required" />
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="2">
+                                                            <MudTextField @bind-Value="line.SteelGrade" Label="Steel Grade" Required="true"
+                                                                         RequiredError="Steel grade is required" />
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="2">
+                                                            <MudTextField @bind-Value="line.ProfileType" Label="Profile Type" 
+                                                                         Required="@(line.MaterialType == MaterialType.Profile)"
+                                                                         RequiredError="Profile type is required for profiles"
+                                                                         Disabled="@(line.MaterialType != MaterialType.Profile)" />
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="2">
+                                                            <MudNumericField @bind-Value="line.TotalLength" Label="Total Length (mm)" 
+                                                                           Min="0m" T="decimal"
+                                                                           Required="@(line.MaterialType == MaterialType.Profile)"
+                                                                           RequiredError="Total length required for profiles"
+                                                                           Disabled="@(line.MaterialType != MaterialType.Profile)" />
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="1">
+                                                            <MudNumericField @bind-Value="line.PieceCount" Label="Pieces" 
+                                                                           Min="0" T="int" />
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="1">
+                                                            <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                                          Size="Size.Small" OnClick="@(() => RemoveLine(line))" />
+                                                        </MudItem>
+                                                        <MudItem xs="12">
+                                                            <MudTextField @bind-Value="line.Notes" Label="Line Notes" 
+                                                                         Placeholder="Optional notes for this line" />
+                                                        </MudItem>
+                                                    </MudGrid>
+                                                </MudCard>
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudText Color="Color.Secondary" Class="text-center">No lines added yet. Click "Add Line" to get started.</MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        @if (priceRequest.Status == PriceRequestStatus.Draft)
+        {
+            <MudButton Color="Color.Secondary" OnClick="SaveDraft" Disabled="@(!isFormValid)">
+                Save Draft
+            </MudButton>
+            <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isFormValid || !HasLines)">
+                Submit Request
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary" OnClick="SaveChanges" Disabled="@(!isFormValid)">
+                Save Changes
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PriceRequest? PriceRequest { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+
+    private PriceRequest priceRequest = new();
+    private DateTime? requestDate;
+
+    private bool IsEdit => PriceRequest != null;
+    private bool HasLines => priceRequest.Lines?.Any() == true;
+
+    protected override void OnInitialized()
+    {
+        if (IsEdit && PriceRequest != null)
+        {
+            priceRequest = new PriceRequest
+            {
+                Id = PriceRequest.Id,
+                Number = PriceRequest.Number,
+                Description = PriceRequest.Description,
+                Status = PriceRequest.Status,
+                RequestDate = PriceRequest.RequestDate,
+                SubmittedDate = PriceRequest.SubmittedDate,
+                RequestedBy = PriceRequest.RequestedBy,
+                Notes = PriceRequest.Notes,
+                Lines = PriceRequest.Lines?.Select(l => new PriceRequestLine
+                {
+                    Id = l.Id,
+                    PriceRequestId = l.PriceRequestId,
+                    MaterialType = l.MaterialType,
+                    Dimensions = l.Dimensions,
+                    TotalLength = l.TotalLength,
+                    PieceCount = l.PieceCount,
+                    SteelGrade = l.SteelGrade,
+                    ProfileType = l.ProfileType,
+                    Notes = l.Notes
+                }).ToList() ?? new List<PriceRequestLine>()
+            };
+            requestDate = priceRequest.RequestDate;
+        }
+        else
+        {
+            priceRequest.Status = PriceRequestStatus.Draft;
+            priceRequest.RequestDate = DateTime.UtcNow;
+            requestDate = priceRequest.RequestDate;
+            priceRequest.Lines = new List<PriceRequestLine>();
+        }
+    }
+
+    private void AddLine()
+    {
+        priceRequest.Lines.Add(new PriceRequestLine
+        {
+            MaterialType = MaterialType.Sheet,
+            PieceCount = 1
+        });
+    }
+
+    private void RemoveLine(PriceRequestLine line)
+    {
+        priceRequest.Lines.Remove(line);
+    }
+
+    private async Task SaveDraft()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                // Update date from date picker
+                if (requestDate.HasValue)
+                    priceRequest.RequestDate = requestDate.Value;
+
+                priceRequest.Status = PriceRequestStatus.Draft;
+
+                if (IsEdit)
+                {
+                    await PriceRequestService.UpdateAsync(priceRequest);
+                }
+                else
+                {
+                    await PriceRequestService.CreateAsync(priceRequest);
+                }
+                
+                MudDialog.Close(DialogResult.Ok(priceRequest));
+                Snackbar.Add("Price request saved as draft successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving price request: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        
+        if (form.IsValid && HasLines)
+        {
+            try
+            {
+                // Update date from date picker
+                if (requestDate.HasValue)
+                    priceRequest.RequestDate = requestDate.Value;
+
+                if (IsEdit)
+                {
+                    await PriceRequestService.UpdateAsync(priceRequest);
+                    await PriceRequestService.SubmitAsync(priceRequest.Id);
+                }
+                else
+                {
+                    var created = await PriceRequestService.CreateAsync(priceRequest);
+                    await PriceRequestService.SubmitAsync(created.Id);
+                }
+                
+                MudDialog.Close(DialogResult.Ok(priceRequest));
+                Snackbar.Add("Price request submitted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error submitting price request: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                // Update date from date picker
+                if (requestDate.HasValue)
+                    priceRequest.RequestDate = requestDate.Value;
+
+                await PriceRequestService.UpdateAsync(priceRequest);
+                
+                MudDialog.Close(DialogResult.Ok(priceRequest));
+                Snackbar.Add("Price request updated successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating price request: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
