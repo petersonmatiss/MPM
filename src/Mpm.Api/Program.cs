@@ -4,8 +4,12 @@ using Mpm.Services;
 using Mpm.Services.DTOs;
 using Mpm.Domain.Entities;
 using Mpm.Domain;
+using Mpm.Services.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Azure Key Vault configuration source
+builder.Configuration.AddMpmKeyVault();
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -33,6 +37,9 @@ builder.Services.AddDbContext<MpmDbContext>(options =>
 
 // Add MPM services
 builder.Services.AddMpmServices();
+
+// Add Azure Key Vault services
+builder.Services.AddKeyVault(builder.Configuration);
 
 var app = builder.Build();
 

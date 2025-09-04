@@ -6,8 +6,12 @@ using Mpm.Domain.Entities;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Mpm.Services.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Azure Key Vault configuration source
+builder.Configuration.AddMpmKeyVault();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -39,6 +43,9 @@ builder.Services.AddDbContext<MpmDbContext>(options =>
 
 // Add MPM services
 builder.Services.AddMpmServices();
+
+// Add Azure Key Vault services
+builder.Services.AddKeyVault(builder.Configuration);
 
 // Add Identity services
 //builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
