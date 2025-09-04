@@ -1,0 +1,157 @@
+@page "/login"
+@using Mpm.Services
+@using Mpm.Domain.Entities
+@using System.ComponentModel.DataAnnotations
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Login - MPM</PageTitle>
+
+<div class="d-flex justify-center align-center" style="min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <MudCard Class="pa-8" Style="max-width: 400px; width: 100%;">
+        <MudCardContent>
+            <div class="d-flex flex-column align-center mb-6">
+                <MudIcon Icon="Icons.Material.Filled.Engineering" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                <MudText Variant="Variant.h4" Color="Color.Primary" Class="mb-1">MPM</MudText>
+                <MudText Variant="Variant.body2" Color="Color.Secondary">MetalProjekts Management</MudText>
+            </div>
+
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-4">
+                    <MudTextField @bind-Value="loginModel.Username"
+                                  Label="Username or Email"
+                                  For="@(() => loginModel.Username)"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Text"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="Icons.Material.Filled.Person"
+                                  FullWidth="true" />
+                </div>
+
+                <div class="mb-4">
+                    <MudTextField @bind-Value="loginModel.Password"
+                                  Label="Password"
+                                  For="@(() => loginModel.Password)"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="Icons.Material.Filled.Lock"
+                                  FullWidth="true" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">
+                        @errorMessage
+                    </MudAlert>
+                }
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Class="mt-3"
+                           Disabled="isLoading">
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Signing in...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Sign In</MudText>
+                    }
+                </MudButton>
+            </EditForm>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if user is already authenticated
+        var sessionToken = await GetSessionTokenAsync();
+        if (!string.IsNullOrEmpty(sessionToken) && await AuthService.ValidateSessionAsync(sessionToken))
+        {
+            Navigation.NavigateTo("/", replace: true);
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.AuthenticateAsync(loginModel.Username, loginModel.Password);
+            
+            if (result.Success && result.User != null)
+            {
+                // Create session
+                var userAgent = await JSRuntime.InvokeAsync<string>("navigator.userAgent");
+                var session = await AuthService.CreateSessionAsync(result.User.Id, userAgent: userAgent);
+                
+                if (session != null)
+                {
+                    // Store session token in browser
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "mpm_session", session.SessionToken);
+                    
+                    // Navigate to home
+                    Navigation.NavigateTo("/", replace: true);
+                }
+                else
+                {
+                    errorMessage = "Failed to create session. Please try again.";
+                }
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Login failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string?> GetSessionTokenAsync()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "mpm_session");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Username or email is required")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

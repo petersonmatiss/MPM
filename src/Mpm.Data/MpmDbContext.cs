@@ -56,6 +56,10 @@ public class MpmDbContext : DbContext
     public DbSet<ProfileUsage> ProfileUsages { get; set; }
     public DbSet<TimeLog> TimeLogs { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    
+    // Authentication entities
+    public DbSet<User> Users { get; set; }
+    public DbSet<UserSession> UserSessions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +104,10 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<ProfileUsage>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<TimeLog>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        
+        // Authentication entities - Users are tenant-specific
+        modelBuilder.Entity<User>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<UserSession>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
 
         // Configure precision for decimal properties
         modelBuilder.Entity<BomItem>()
@@ -140,6 +148,25 @@ public class MpmDbContext : DbContext
             
         modelBuilder.Entity<Material>()
             .HasIndex(e => new { e.TenantId, e.Grade, e.Dimension });
+            
+        // Configure User entity relationships and indexes
+        modelBuilder.Entity<User>()
+            .HasIndex(e => new { e.TenantId, e.Username })
+            .IsUnique();
+            
+        modelBuilder.Entity<User>()
+            .HasIndex(e => new { e.TenantId, e.Email })
+            .IsUnique();
+            
+        modelBuilder.Entity<UserSession>()
+            .HasOne(us => us.User)
+            .WithMany(u => u.UserSessions)
+            .HasForeignKey(us => us.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        modelBuilder.Entity<UserSession>()
+            .HasIndex(e => e.SessionToken)
+            .IsUnique();
     }
 
     public override int SaveChanges()
