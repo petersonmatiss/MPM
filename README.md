@@ -13,6 +13,7 @@ MPM (MetalProjekts Management) is a modern .NET 8 application that manages steel
 - **📦 Inventory Management**: Sheets, Profiles, and Profile Remnants tracking
 - **🏭 Project Management**: Manufacturing timelines, statuses, and workflows  
 - **💰 Quotation System**: Multi-level assemblies and pricing
+- **💸 Price Request Management**: Complete workflow for price request creation, submission, and tracking
 - **🔧 Manufacturing Orders**: Work order management with drawing attachments
 - **⏱️ Time Tracking**: Shop-floor kiosk integration via Power Apps
 - **📊 Reporting**: Comprehensive inventory, usage, and cost analytics
@@ -28,6 +29,9 @@ The application features a modern, reorganized sidebar navigation designed for o
 #### **4-Section Organization**
 - **🏠 Dashboard**: Main dashboard and home page access
 - **🏗️ Projects**: Customer management and project-related functionality
+  - Price Requests management
+  - Customer directory
+  - Project tracking
 - **📦 Material**: Complete inventory management suite
   - Inventory overview
   - Sheets management
@@ -118,6 +122,8 @@ tests/
 #### Project & Manufacturing
 - **Customer**: Client information and contacts
 - **Project**: Manufacturing projects with timelines and statuses
+- **PriceRequest**: Price request creation with status tracking (Draft, Submitted, Quoted, Rejected)
+- **PriceRequestLine**: Line items supporting Sheet and Profile materials with conditional validation
 - **Quotation**: Multi-level pricing with assemblies and parts
 - **WorkOrder**: Manufacturing work orders with operations
 - **BillOfMaterial**: Project BOMs and material requirements
@@ -210,6 +216,10 @@ The system uses Entity Framework Core with Azure SQL Database. Key configuration
 - **Timezone**: Europe/Riga (auto clock-out at 17:01)
 - **Steel Grades**: S355, S235, etc. with material certificates
 - **QR Codes**: Include both plain text and numeric IDs
+- **Price Requests**: Unique identifier format PR-YYYYMM-### with conditional validation
+  - Profile Type mandatory when material type is Profile
+  - Total Length required for Profile materials, disabled for Sheet materials
+  - Draft/Submit workflow with proper status transitions
 
 ## 📝 Usage
 
@@ -222,11 +232,16 @@ The system uses Entity Framework Core with Azure SQL Database. Key configuration
 
 ### Project Workflow
 
-1. **Create Quotations**: Build multi-level assemblies with pricing
-2. **Convert to Projects**: Generate manufacturing projects from quotes
-3. **Generate Work Orders**: Create detailed manufacturing instructions
-4. **Track Progress**: Monitor project status and timelines
-5. **Quality Control**: Handle NCRs and compliance documentation
+1. **Create Price Requests**: Submit detailed material requirements with pricing requests
+   - Support for both Sheet and Profile materials
+   - Conditional validation (Profile Type required for profiles)
+   - Unique identifier generation (PR-YYYYMM-### format)
+   - Draft/Submit workflow with status tracking
+2. **Create Quotations**: Build multi-level assemblies with pricing
+3. **Convert to Projects**: Generate manufacturing projects from quotes
+4. **Generate Work Orders**: Create detailed manufacturing instructions
+5. **Track Progress**: Monitor project status and timelines
+6. **Quality Control**: Handle NCRs and compliance documentation
 
 ### Shop Floor Operations
 
@@ -256,7 +271,7 @@ dotnet test --filter Category=Unit
 - **Integration Tests**: Database and API endpoint testing  
 - **Domain Model Tests**: Entity validation and relationships
 
-Current test metrics: **54 tests passing**
+Current test metrics: **64 tests passing**
 
 ## 🔧 Development Guidelines
 
@@ -338,6 +353,7 @@ Terraform scripts for Azure resources:
 - [x] Core inventory management
 - [x] Basic project tracking  
 - [x] Quotation system
+- [x] Price Request management system
 - [x] Authentication & authorization
 - [x] Modern UI/UX with 4-section navigation
 - [x] Cohesive color scheme and design system

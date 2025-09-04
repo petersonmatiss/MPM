@@ -42,8 +42,9 @@ The MPM system manages steel inventory, projects, quotations, manufacturing orde
 - **NonConformanceReport** / **NCRPhoto** - Quality issues
 - **DeclarationOfPerformance** / **DoPMaterial** / **DoPHeat** - CE compliance
 
-### Quotation Management
+### Quotation & Pricing Management
 - **Quotation** / **QuotationLine** - Customer quotations
+- **PriceRequest** / **PriceRequestLine** - Price request workflow management
 
 ## Indices and Performance
 
@@ -73,6 +74,7 @@ Additional indices are placed on:
 - Material 1:N InventoryLot
 - InventoryLot 1:N MaterialReservation
 - WorkOrder 1:N WorkOrderOperation
+- PriceRequest 1:N PriceRequestLine
 
 ## Entity Inheritance
 
