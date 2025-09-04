@@ -151,6 +151,26 @@ netstat -ano | findstr :5277    # Windows
    - Click "Cancel" button
    - Dialog should close and return to suppliers list
 
+### Testing Price Request Functionality
+
+1. **Navigate to Price Requests page**: `http://localhost:5277/price-requests`
+
+2. **Test Price Request creation**:
+   - Click "New Price Request" button
+   - Dialog should open with form fields
+   - Fill in Description and Requested By fields
+   - Add line items by clicking "Add Line Item"
+   - Test conditional validation:
+     - Select "Profile" material type → Profile Type becomes required
+     - Select "Sheet" material type → Total Length is disabled
+   - Save as draft or submit the request
+
+3. **Test Price Request management**:
+   - Search functionality should filter requests
+   - Status filtering should work
+   - Date range filtering should function properly
+   - Edit, View, Submit, and Delete actions should be available based on status
+
 ### Expected Behavior
 
 ✅ **Working correctly:**
@@ -158,11 +178,16 @@ netstat -ano | findstr :5277    # Windows
 - Form fields are interactive and accept input
 - Validation works (required fields show errors)
 - Cancel/Submit buttons function properly
+- Price Request conditional validation works (Profile Type required for profiles)
+- Price Request status workflow functions correctly
+- Search and filtering capabilities work as expected
 
 ❌ **Needs investigation:**
 - Nothing happens when clicking dialog buttons
 - Dialog appears but is not interactive
 - JavaScript errors in browser console
+- Price Request validation not working as expected
+- Status transitions not functioning properly
 
 ## Development Tips
 
