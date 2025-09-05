@@ -28,6 +28,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISteelGradeService, SteelGradeService>();
         services.AddScoped<IProfileTypeService, ProfileTypeService>();
         
+        // Add authentication service
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
+        
         return services;
     }
     

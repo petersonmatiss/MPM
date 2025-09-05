@@ -1,4 +1,9 @@
 ﻿@inherits LayoutComponentBase
+@using Mpm.Services
+@using Mpm.Domain.Entities
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -11,6 +16,23 @@
         <MudSpacer />
         <MudText Variant="Variant.h6">MPM - MetalProjekts Management</MudText>
         <MudSpacer />
+        
+        @if (currentUser != null)
+        {
+            <MudMenu Icon="Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Direction="Direction.Bottom" OffsetY="true">
+                <ChildContent>
+                    <div class="d-flex flex-column px-4 py-2" style="min-width: 200px;">
+                        <MudText Variant="Variant.subtitle1">@currentUser.FullName</MudText>
+                        <MudText Variant="Variant.body2" Color="Color.Secondary">@currentUser.Email</MudText>
+                    </div>
+                    <MudDivider />
+                    <MudMenuItem OnClick="HandleLogout" Icon="Icons.Material.Filled.Logout">
+                        Logout
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        }
+        
         <MudIconButton Icon="Icons.Material.Filled.Brightness4" Color="Color.Inherit" />
     </MudAppBar>
     
@@ -27,9 +49,52 @@
 
 @code {
     bool _drawerOpen = true;
+    private User? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUser();
+    }
 
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            var sessionToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "mpm_session");
+            if (!string.IsNullOrEmpty(sessionToken))
+            {
+                currentUser = await AuthService.GetUserBySessionTokenAsync(sessionToken);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore errors in getting user - they might not be logged in
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            var sessionToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "mpm_session");
+            if (!string.IsNullOrEmpty(sessionToken))
+            {
+                await AuthService.InvalidateSessionAsync(sessionToken);
+            }
+            
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "mpm_session");
+            Navigation.NavigateTo("/login", replace: true);
+        }
+        catch (Exception)
+        {
+            // Force logout anyway
+            Navigation.NavigateTo("/login", replace: true);
+        }
     }
 }

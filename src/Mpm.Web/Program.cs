@@ -6,8 +6,22 @@ using Mpm.Domain.Entities;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Azure.Identity;
+using Mpm.Web.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Azure Key Vault if in Production
+if (builder.Environment.IsProduction())
+{
+    var keyVaultUrl = builder.Configuration["KeyVault:Vault"];
+    if (!string.IsNullOrEmpty(keyVaultUrl))
+    {
+        builder.Configuration.AddAzureKeyVault(
+            new Uri(keyVaultUrl),
+            new DefaultAzureCredential());
+    }
+}
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -32,7 +46,9 @@ builder.Services.AddDbContext<MpmDbContext>(options =>
     }
     else
     {
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+        // In production, get connection string from Key Vault or configuration
+        var connectionString = builder.Configuration["MPMSQL"] ?? builder.Configuration.GetConnectionString("DefaultConnection");
+        options.UseSqlServer(connectionString,
             b => b.MigrationsAssembly("Mpm.Api"));
     }
 });
@@ -40,9 +56,12 @@ builder.Services.AddDbContext<MpmDbContext>(options =>
 // Add MPM services
 builder.Services.AddMpmServices();
 
-// Add Identity services
-//builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
-//    .AddEntityFrameworkStores<MpmDbContext>();
+// Configure authentication
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.CheckConsentNeeded = context => false;
+    options.MinimumSameSitePolicy = SameSiteMode.None;
+});
 
 var app = builder.Build();
 
@@ -163,6 +182,19 @@ if (app.Environment.IsDevelopment())
         context.Profiles.AddRange(profiles);
         context.SaveChanges();
     }
+    
+    // Create default admin user for development
+    if (!context.Users.Any())
+    {
+        var authService = scope.ServiceProvider.GetRequiredService<IAuthenticationService>();
+        await authService.CreateUserAsync(
+            username: "admin",
+            email: "admin@mpm.local",
+            firstName: "System",
+            lastName: "Administrator",
+            password: "Admin123!"
+        );
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -178,8 +210,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-//app.UseAuthentication();
-//app.UseAuthorization();
+// Add custom authentication middleware
+app.UseMiddleware<AuthenticationMiddleware>();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
