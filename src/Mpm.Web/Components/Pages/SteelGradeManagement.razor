@@ -1,0 +1,130 @@
+@page "/inventory/steel-grades"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject ISteelGradeService SteelGradeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Steel Grade Management - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Steel Grade Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudTextField @bind-Value="searchString" Placeholder="Search steel grades..." 
+                         Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                         IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                         Style="min-width: 300px;" />
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" 
+                      OnClick="OpenAddDialog">
+                Add Steel Grade
+            </MudButton>
+        </div>
+
+        <MudDataGrid Items="@FilteredSteelGrades" Filterable="false" SortMode="@SortMode.Multiple" Groupable="false">
+            <Columns>
+                <PropertyColumn Property="x => x.Code" Title="Code" />
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.Standard" Title="Standard" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+                <PropertyColumn Property="x => x.YieldStrengthMPa" Title="Yield Strength (MPa)" Format="F0" />
+                <PropertyColumn Property="x => x.TensileStrengthMPa" Title="Tensile Strength (MPa)" Format="F0" />
+                <PropertyColumn Property="x => x.DensityKgPerM3" Title="Density (kg/m³)" Format="F0" />
+                <PropertyColumn Property="x => x.IsActive" Title="Active">
+                    <CellTemplate>
+                        <MudChip Variant="Variant.Filled" Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false">
+                    <CellTemplate>
+                        <MudIconButton Icon="Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                      Title="Edit" OnClick="@(() => OpenEditDialog(context.Item))" />
+                        <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                      Title="Delete" OnClick="@(() => DeleteSteelGrade(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<SteelGrade> steelGrades = new();
+    private string searchString = string.Empty;
+
+    private IEnumerable<SteelGrade> FilteredSteelGrades => 
+        steelGrades.Where(sg => string.IsNullOrWhiteSpace(searchString) ||
+                               sg.Code?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                               sg.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                               sg.Standard?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                               sg.Description?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSteelGrades();
+    }
+
+    private async Task LoadSteelGrades()
+    {
+        try
+        {
+            steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading steel grades: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters();
+        var dialog = await DialogService.ShowAsync<SteelGradeDialog>("Add Steel Grade", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadSteelGrades();
+        }
+    }
+
+    private async Task OpenEditDialog(SteelGrade steelGrade)
+    {
+        var parameters = new DialogParameters { ["SteelGrade"] = steelGrade };
+        var dialog = await DialogService.ShowAsync<SteelGradeDialog>("Edit Steel Grade", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadSteelGrades();
+        }
+    }
+
+    private async Task DeleteSteelGrade(SteelGrade steelGrade)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete the steel grade '{steelGrade.Code}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await SteelGradeService.DeleteAsync(steelGrade.Id);
+                await LoadSteelGrades();
+                Snackbar.Add($"Steel grade '{steelGrade.Code}' deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting steel grade: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

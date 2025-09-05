@@ -36,6 +36,7 @@ public interface IInventoryService
     Task<InventoryLot> CreateLotAsync(InventoryLot lot);
     Task<InventoryLot> UpdateLotAsync(InventoryLot lot);
     Task DeleteLotAsync(int id);
+    Task<IEnumerable<string>> GetPopularDimensionsAsync(string profileType, int limit = 10);
 }
 
 public interface IQuotationService
@@ -306,6 +307,37 @@ public class InventoryService : IInventoryService
             _context.InventoryLots.Remove(lot);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task<IEnumerable<string>> GetPopularDimensionsAsync(string profileType, int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(profileType))
+        {
+            return Enumerable.Empty<string>();
+        }
+
+        // Get dimensions from inventory lots and profiles for the given profile type
+        var inventoryDimensions = await _context.InventoryLots
+            .Where(i => i.ProfileType != null && i.ProfileType.Contains(profileType))
+            .Select(i => i.ProfileType!)
+            .Where(pt => !string.IsNullOrEmpty(pt))
+            .ToListAsync();
+
+        var profileDimensions = await _context.Profiles
+            .Include(p => p.ProfileType)
+            .Where(p => p.ProfileType != null && p.ProfileType.Code == profileType && !string.IsNullOrEmpty(p.Dimension))
+            .Select(p => p.Dimension!)
+            .ToListAsync();
+
+        // Combine and count frequencies
+        var allDimensions = inventoryDimensions.Concat(profileDimensions);
+        
+        return allDimensions
+            .GroupBy(d => d)
+            .OrderByDescending(g => g.Count())
+            .Take(limit)
+            .Select(g => g.Key)
+            .ToList();
     }
 }
 

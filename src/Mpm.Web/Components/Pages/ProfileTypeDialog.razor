@@ -1,0 +1,130 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IProfileTypeService ProfileTypeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-width: none !important;">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">
+                            @(ProfileType?.Id > 0 ? "Edit Profile Type" : "Add Profile Type")
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="profileType.Code" Label="Code" Required="true"
+                                     RequiredError="Code is required" MaxLength="20" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="profileType.Name" Label="Name" Required="true"
+                                     RequiredError="Name is required" MaxLength="100" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="profileType.Category" Label="Category" Required="true"
+                                     RequiredError="Category is required" MaxLength="50" 
+                                     HelperText="e.g., Beam, Channel, Angle, Tube" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="profileType.StandardWeight" Label="Standard Weight (kg/m)" 
+                                        Required="true" RequiredError="Standard weight is required"
+                                        Min="0" Step="0.01M" Format="F2" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="profileType.DimensionFormat" Label="Dimension Format" 
+                                     MaxLength="50" HelperText="e.g., HxWxT, DxT, LxLxT" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudSwitch @bind-Value="profileType.IsActive" Label="Active" Color="Color.Primary" T="bool" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="profileType.Description" Label="Description" 
+                                     Lines="3" MaxLength="500" 
+                                     HelperText="Optional description of the profile type" />
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                   StartIcon="Icons.Material.Filled.Save"
+                   Disabled="@(!isFormValid)">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ProfileType? ProfileType { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private ProfileType profileType = new();
+
+    protected override void OnInitialized()
+    {
+        if (ProfileType != null)
+        {
+            profileType = new ProfileType
+            {
+                Id = ProfileType.Id,
+                Code = ProfileType.Code,
+                Name = ProfileType.Name,
+                Category = ProfileType.Category,
+                Description = ProfileType.Description,
+                StandardWeight = ProfileType.StandardWeight,
+                DimensionFormat = ProfileType.DimensionFormat,
+                IsActive = ProfileType.IsActive
+            };
+        }
+        else
+        {
+            profileType.IsActive = true;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                if (ProfileType?.Id > 0)
+                {
+                    await ProfileTypeService.UpdateAsync(profileType);
+                    Snackbar.Add($"Profile type '{profileType.Code}' updated successfully", Severity.Success);
+                }
+                else
+                {
+                    await ProfileTypeService.CreateAsync(profileType);
+                    Snackbar.Add($"Profile type '{profileType.Code}' created successfully", Severity.Success);
+                }
+                
+                MudDialog.Close(DialogResult.Ok(profileType));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving profile type: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

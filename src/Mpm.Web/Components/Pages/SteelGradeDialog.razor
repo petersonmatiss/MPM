@@ -1,0 +1,141 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject ISteelGradeService SteelGradeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isFormValid" @bind-Errors="@errors">
+            <MudContainer Style="max-width: none !important;">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Variant="Variant.h6">
+                            @(SteelGrade?.Id > 0 ? "Edit Steel Grade" : "Add Steel Grade")
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="steelGrade.Code" Label="Code" Required="true"
+                                     RequiredError="Code is required" MaxLength="20" 
+                                     HelperText="e.g., S235, S355, S275" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="steelGrade.Name" Label="Name" Required="true"
+                                     RequiredError="Name is required" MaxLength="100"
+                                     HelperText="e.g., S235JR, S355JR" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="steelGrade.Standard" Label="Standard" Required="true"
+                                     RequiredError="Standard is required" MaxLength="50"
+                                     HelperText="e.g., EN 10025, ASTM A36" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="steelGrade.DensityKgPerM3" Label="Density (kg/m³)" 
+                                        Required="true" RequiredError="Density is required"
+                                        Min="1000" Max="10000" Step="1" Format="F0" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="steelGrade.YieldStrengthMPa" Label="Yield Strength (MPa)" 
+                                        Required="true" RequiredError="Yield strength is required"
+                                        Min="100" Max="2000" Step="1" Format="F0" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="steelGrade.TensileStrengthMPa" Label="Tensile Strength (MPa)" 
+                                        Required="true" RequiredError="Tensile strength is required"
+                                        Min="200" Max="3000" Step="1" Format="F0" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudSwitch @bind-Value="steelGrade.IsActive" Label="Active" Color="Color.Primary" T="bool" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="steelGrade.Description" Label="Description" 
+                                     Lines="3" MaxLength="500" 
+                                     HelperText="Optional description of the steel grade" />
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                   StartIcon="Icons.Material.Filled.Save"
+                   Disabled="@(!isFormValid)">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public SteelGrade? SteelGrade { get; set; }
+
+    private MudForm form = null!;
+    private bool isFormValid = false;
+    private string[] errors = Array.Empty<string>();
+    private SteelGrade steelGrade = new();
+
+    protected override void OnInitialized()
+    {
+        if (SteelGrade != null)
+        {
+            steelGrade = new SteelGrade
+            {
+                Id = SteelGrade.Id,
+                Code = SteelGrade.Code,
+                Name = SteelGrade.Name,
+                Standard = SteelGrade.Standard,
+                Description = SteelGrade.Description,
+                DensityKgPerM3 = SteelGrade.DensityKgPerM3,
+                YieldStrengthMPa = SteelGrade.YieldStrengthMPa,
+                TensileStrengthMPa = SteelGrade.TensileStrengthMPa,
+                IsActive = SteelGrade.IsActive
+            };
+        }
+        else
+        {
+            steelGrade.IsActive = true;
+            steelGrade.DensityKgPerM3 = 7850; // Default steel density
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        
+        if (form.IsValid)
+        {
+            try
+            {
+                if (SteelGrade?.Id > 0)
+                {
+                    await SteelGradeService.UpdateAsync(steelGrade);
+                    Snackbar.Add($"Steel grade '{steelGrade.Code}' updated successfully", Severity.Success);
+                }
+                else
+                {
+                    await SteelGradeService.CreateAsync(steelGrade);
+                    Snackbar.Add($"Steel grade '{steelGrade.Code}' created successfully", Severity.Success);
+                }
+                
+                MudDialog.Close(DialogResult.Ok(steelGrade));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving steel grade: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

@@ -1,4 +1,9 @@
+@using Mpm.Domain.Entities
+@using Mpm.Services
 @inject IPriceRequestService PriceRequestService
+@inject IInventoryService InventoryService
+@inject ISteelGradeService SteelGradeService
+@inject IProfileTypeService ProfileTypeService
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -56,40 +61,87 @@
                                             <MudItem xs="12">
                                                 <MudCard Elevation="1" Class="pa-3 mb-2">
                                                     <MudGrid>
-                                                        <MudItem xs="12" md="2">
-                                                            <MudSelect @bind-Value="line.MaterialType" Label="Material Type" Required="true" T="MaterialType">
-                                                                @foreach (var materialType in Enum.GetValues<MaterialType>())
+                                                        <!-- 1. Material Type -->
+                                                        <MudItem xs="12" md="3">
+                                                            <MudSelect Value="@GetMaterialTypeString(line.MaterialType)" 
+                                                                      ValueChanged="@((string value) => OnMaterialTypeChanged(line, value))" 
+                                                                      Label="Material Type" Required="true" 
+                                                                      RequiredError="Material type is required">
+                                                                <MudSelectItem Value="@("Steel Sheets")">Steel Sheets</MudSelectItem>
+                                                                <MudSelectItem Value="@("Steel Profiles")">Steel Profiles</MudSelectItem>
+                                                            </MudSelect>
+                                                        </MudItem>
+
+                                                        <!-- 2. Profile Type (for Steel Profiles) -->
+                                                        @if (line.MaterialType == MaterialType.Profile)
+                                                        {
+                                                            <MudItem xs="12" md="3">
+                                                                <MudSelect Value="@GetProfileTypeId(line)" 
+                                                                          ValueChanged="@((int? value) => OnProfileTypeChanged(line, value))" 
+                                                                          Label="Profile Type" Required="true"
+                                                                          RequiredError="Profile type is required" T="int?" Clearable="true">
+                                                                    @foreach (var profileType in profileTypes)
+                                                                    {
+                                                                        <MudSelectItem Value="profileType.Id">@profileType.Code - @profileType.Name</MudSelectItem>
+                                                                    }
+                                                                </MudSelect>
+                                                            </MudItem>
+                                                        }
+
+                                                        <!-- 3. Dimensions (with suggestions) -->
+                                                        <MudItem xs="12" md="3">
+                                                            @{
+                                                                var suggestions = GetDimensionSuggestions(line);
+                                                            }
+                                                            @if (suggestions.Any())
+                                                            {
+                                                                <MudSelect @bind-Value="line.Dimensions" Label="Dimensions" Required="true"
+                                                                          RequiredError="Dimensions are required" T="string" Clearable="true"
+                                                                          HelperText="Select from suggestions or enter custom dimensions">
+                                                                    @foreach (var suggestion in suggestions)
+                                                                    {
+                                                                        <MudSelectItem Value="@suggestion">@suggestion</MudSelectItem>
+                                                                    }
+                                                                </MudSelect>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudTextField @bind-Value="line.Dimensions" Label="Dimensions" Required="true" 
+                                                                             RequiredError="Dimensions are required"
+                                                                             Placeholder="e.g., 200x100x8 or select from profile sizes"
+                                                                             HelperText="Enter dimensions manually" />
+                                                            }
+                                                        </MudItem>
+
+                                                        <!-- 4. Steel Grade -->
+                                                        <MudItem xs="12" md="3">
+                                                            <MudSelect Value="@GetSteelGradeId(line)" 
+                                                                      ValueChanged="@((int? value) => OnSteelGradeChanged(line, value))" 
+                                                                      Label="Steel Grade" Required="true"
+                                                                      RequiredError="Steel grade is required" T="int?" Clearable="true">
+                                                                @foreach (var steelGrade in steelGrades)
                                                                 {
-                                                                    <MudSelectItem Value="materialType">@materialType.ToString()</MudSelectItem>
+                                                                    <MudSelectItem Value="steelGrade.Id">@steelGrade.Code - @steelGrade.Name</MudSelectItem>
                                                                 }
                                                             </MudSelect>
                                                         </MudItem>
-                                                        <MudItem xs="12" md="2">
-                                                            <MudTextField @bind-Value="line.Dimensions" Label="Dimensions" Required="true" 
-                                                                         RequiredError="Dimensions are required" />
-                                                        </MudItem>
-                                                        <MudItem xs="12" md="2">
-                                                            <MudTextField @bind-Value="line.SteelGrade" Label="Steel Grade" Required="true"
-                                                                         RequiredError="Steel grade is required" />
-                                                        </MudItem>
-                                                        <MudItem xs="12" md="2">
-                                                            <MudTextField @bind-Value="line.ProfileType" Label="Profile Type" 
-                                                                         Required="@(line.MaterialType == MaterialType.Profile)"
-                                                                         RequiredError="Profile type is required for profiles"
-                                                                         Disabled="@(line.MaterialType != MaterialType.Profile)" />
-                                                        </MudItem>
-                                                        <MudItem xs="12" md="2">
+
+                                                        <!-- Additional fields in next row -->
+                                                        <MudItem xs="12" md="3">
                                                             <MudNumericField @bind-Value="line.TotalLength" Label="Total Length (mm)" 
                                                                            Min="0m" T="decimal"
                                                                            Required="@(line.MaterialType == MaterialType.Profile)"
                                                                            RequiredError="Total length required for profiles"
                                                                            Disabled="@(line.MaterialType != MaterialType.Profile)" />
                                                         </MudItem>
-                                                        <MudItem xs="12" md="1">
+                                                        <MudItem xs="12" md="3">
                                                             <MudNumericField @bind-Value="line.PieceCount" Label="Pieces" 
                                                                            Min="0" T="int" />
                                                         </MudItem>
-                                                        <MudItem xs="12" md="1">
+                                                        <MudItem xs="12" md="3">
+                                                            <!-- Empty space for layout alignment -->
+                                                        </MudItem>
+                                                        <MudItem xs="12" md="3">
                                                             <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" 
                                                                           Size="Size.Small" OnClick="@(() => RemoveLine(line))" />
                                                         </MudItem>
@@ -144,12 +196,19 @@
 
     private PriceRequest priceRequest = new();
     private DateTime? requestDate;
+    
+    // Data lists for enhanced functionality
+    private List<SteelGrade> steelGrades = new();
+    private List<ProfileType> profileTypes = new();
+    private Dictionary<PriceRequestLine, List<string>> lineDimensionSuggestions = new();
 
     private bool IsEdit => PriceRequest != null;
     private bool HasLines => priceRequest.Lines?.Any() == true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        await LoadData();
+        
         if (IsEdit && PriceRequest != null)
         {
             priceRequest = new PriceRequest
@@ -186,18 +245,42 @@
         }
     }
 
+    private async Task LoadData()
+    {
+        try
+        {
+            steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+            profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
     private void AddLine()
     {
-        priceRequest.Lines.Add(new PriceRequestLine
+        var newLine = new PriceRequestLine
         {
             MaterialType = MaterialType.Sheet,
             PieceCount = 1
-        });
+        };
+        
+        priceRequest.Lines.Add(newLine);
+        
+        // Initialize empty dimension suggestions for the new line
+        lineDimensionSuggestions[newLine] = new List<string>();
     }
 
     private void RemoveLine(PriceRequestLine line)
     {
         priceRequest.Lines.Remove(line);
+        
+        // Clean up dimension suggestions for the removed line
+        if (lineDimensionSuggestions.ContainsKey(line))
+        {
+            lineDimensionSuggestions.Remove(line);
+        }
     }
 
     private async Task SaveDraft()
@@ -291,4 +374,128 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
+
+    // Enhanced field management methods
+
+    private string GetMaterialTypeString(MaterialType materialType)
+    {
+        return materialType switch
+        {
+            MaterialType.Sheet => "Steel Sheets",
+            MaterialType.Profile => "Steel Profiles",
+            _ => "Steel Sheets" // Default fallback
+        };
+    }
+
+    private Task OnMaterialTypeChanged(PriceRequestLine line, string newMaterialType)
+    {
+        // Convert string to MaterialType enum
+        line.MaterialType = newMaterialType switch
+        {
+            "Steel Sheets" => MaterialType.Sheet,
+            "Steel Profiles" => MaterialType.Profile,
+            _ => MaterialType.Sheet // Default fallback
+        };
+
+        // Reset related fields when material type changes
+        line.ProfileType = string.Empty;
+        line.Dimensions = string.Empty;
+        line.TotalLength = 0;
+        
+        // Clear dimension suggestions for this line
+        if (lineDimensionSuggestions.ContainsKey(line))
+        {
+            lineDimensionSuggestions[line].Clear();
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private int? GetProfileTypeId(PriceRequestLine line)
+    {
+        if (string.IsNullOrEmpty(line.ProfileType))
+            return null;
+            
+        var profileType = profileTypes.FirstOrDefault(pt => pt.Code == line.ProfileType);
+        return profileType?.Id;
+    }
+
+    private async Task OnProfileTypeChanged(PriceRequestLine line, int? newProfileTypeId)
+    {
+        if (newProfileTypeId.HasValue)
+        {
+            var selectedProfileType = profileTypes.FirstOrDefault(pt => pt.Id == newProfileTypeId.Value);
+            line.ProfileType = selectedProfileType?.Code ?? string.Empty;
+            
+            // Load dimension suggestions for this profile type
+            await LoadDimensionSuggestions(line, selectedProfileType?.Code);
+        }
+        else
+        {
+            line.ProfileType = string.Empty;
+            if (lineDimensionSuggestions.ContainsKey(line))
+            {
+                lineDimensionSuggestions[line].Clear();
+            }
+        }
+        
+        // Reset dimensions when profile type changes
+        line.Dimensions = string.Empty;
+        StateHasChanged();
+    }
+
+    private int? GetSteelGradeId(PriceRequestLine line)
+    {
+        if (string.IsNullOrEmpty(line.SteelGrade))
+            return null;
+            
+        var steelGrade = steelGrades.FirstOrDefault(sg => sg.Code == line.SteelGrade);
+        return steelGrade?.Id;
+    }
+
+    private async Task OnSteelGradeChanged(PriceRequestLine line, int? newSteelGradeId)
+    {
+        if (newSteelGradeId.HasValue)
+        {
+            var selectedSteelGrade = steelGrades.FirstOrDefault(sg => sg.Id == newSteelGradeId.Value);
+            line.SteelGrade = selectedSteelGrade?.Code ?? string.Empty;
+        }
+        else
+        {
+            line.SteelGrade = string.Empty;
+        }
+        
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private List<string> GetDimensionSuggestions(PriceRequestLine line)
+    {
+        if (lineDimensionSuggestions.TryGetValue(line, out var suggestions))
+        {
+            return suggestions;
+        }
+        return new List<string>();
+    }
+
+    private async Task LoadDimensionSuggestions(PriceRequestLine line, string? profileTypeCode)
+    {
+        if (string.IsNullOrEmpty(profileTypeCode))
+        {
+            lineDimensionSuggestions[line] = new List<string>();
+            return;
+        }
+
+        try
+        {
+            var suggestions = await InventoryService.GetPopularDimensionsAsync(profileTypeCode);
+            lineDimensionSuggestions[line] = suggestions.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading dimension suggestions: {ex.Message}", Severity.Warning);
+            lineDimensionSuggestions[line] = new List<string>();
+        }
+    }
 }

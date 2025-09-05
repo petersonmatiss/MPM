@@ -1,0 +1,129 @@
+@page "/inventory/profile-types"
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@inject IProfileTypeService ProfileTypeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Profile Type Management - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Profile Type Management</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudTextField @bind-Value="searchString" Placeholder="Search profile types..." 
+                         Adornment="Adornment.Start" AdornmentIcon="Icons.Material.Filled.Search" 
+                         IconSize="Size.Medium" Class="mt-0" Immediate="true" 
+                         Style="min-width: 300px;" />
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                      StartIcon="Icons.Material.Filled.Add" 
+                      OnClick="OpenAddDialog">
+                Add Profile Type
+            </MudButton>
+        </div>
+
+        <MudDataGrid Items="@FilteredProfileTypes" Filterable="false" SortMode="@SortMode.Multiple" Groupable="false">
+            <Columns>
+                <PropertyColumn Property="x => x.Code" Title="Code" />
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.Category" Title="Category" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+                <PropertyColumn Property="x => x.StandardWeight" Title="Standard Weight (kg/m)" Format="F2" />
+                <PropertyColumn Property="x => x.DimensionFormat" Title="Dimension Format" />
+                <PropertyColumn Property="x => x.IsActive" Title="Active">
+                    <CellTemplate>
+                        <MudChip Variant="Variant.Filled" Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false">
+                    <CellTemplate>
+                        <MudIconButton Icon="Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                      Title="Edit" OnClick="@(() => OpenEditDialog(context.Item))" />
+                        <MudIconButton Icon="Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                      Title="Delete" OnClick="@(() => DeleteProfileType(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<ProfileType> profileTypes = new();
+    private string searchString = string.Empty;
+
+    private IEnumerable<ProfileType> FilteredProfileTypes => 
+        profileTypes.Where(pt => string.IsNullOrWhiteSpace(searchString) ||
+                                pt.Code?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                                pt.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                                pt.Category?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+                                pt.Description?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileTypes();
+    }
+
+    private async Task LoadProfileTypes()
+    {
+        try
+        {
+            profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading profile types: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters();
+        var dialog = await DialogService.ShowAsync<ProfileTypeDialog>("Add Profile Type", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadProfileTypes();
+        }
+    }
+
+    private async Task OpenEditDialog(ProfileType profileType)
+    {
+        var parameters = new DialogParameters { ["ProfileType"] = profileType };
+        var dialog = await DialogService.ShowAsync<ProfileTypeDialog>("Edit Profile Type", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadProfileTypes();
+        }
+    }
+
+    private async Task DeleteProfileType(ProfileType profileType)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete the profile type '{profileType.Code}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await ProfileTypeService.DeleteAsync(profileType.Id);
+                await LoadProfileTypes();
+                Snackbar.Add($"Profile type '{profileType.Code}' deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting profile type: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

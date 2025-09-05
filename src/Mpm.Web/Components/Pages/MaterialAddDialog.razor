@@ -3,6 +3,8 @@
 @inject IMaterialService MaterialService
 @inject IInventoryService InventoryService
 @inject ISupplierService SupplierService
+@inject ISteelGradeService SteelGradeService
+@inject IProfileTypeService ProfileTypeService
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -25,33 +27,51 @@
                         </MudSelect>
                     </MudItem>
 
-                    <!-- Profile Type (for Steel Profiles) -->
+                    <!-- Profile Type (for Steel Profiles) - Immediately after Material Type -->
                     @if (materialType == "Steel Profiles")
                     {
                         <MudItem xs="12" md="6">
-                            <MudSelect Value="profileType" ValueChanged="@((string value) => OnProfileTypeChanged(value))" Label="Profile Type" Required="true"
-                                      RequiredError="Profile type is required">
-                                <MudSelectItem Value="@("RHS")">RHS (Rectangular Hollow Section)</MudSelectItem>
-                                <MudSelectItem Value="@("SHS")">SHS (Square Hollow Section)</MudSelectItem>
-                                <MudSelectItem Value="@("CHS")">CHS (Circular Hollow Section)</MudSelectItem>
-                                <MudSelectItem Value="@("L-Profile")">L-Profile (Angle)</MudSelectItem>
-                                <MudSelectItem Value="@("HEB")">HEB (European H-Beam)</MudSelectItem>
-                                <MudSelectItem Value="@("HEA")">HEA (European H-Beam)</MudSelectItem>
-                                <MudSelectItem Value="@("IPE")">IPE (European I-Beam)</MudSelectItem>
-                                <MudSelectItem Value="@("UPN")">UPN (European Channel)</MudSelectItem>
-                                <MudSelectItem Value="@("UPE")">UPE (European Channel)</MudSelectItem>
-                                <MudSelectItem Value="@("HEM")">HEM (Heavy European H-Beam)</MudSelectItem>
-                                <MudSelectItem Value="@("IPN")">IPN (European I-Beam Normal)</MudSelectItem>
+                            <MudSelect Value="selectedProfileTypeId" ValueChanged="@OnProfileTypeChanged" Label="Profile Type" Required="true"
+                                      RequiredError="Profile type is required" T="int?" Clearable="true">
+                                @foreach (var profileType in profileTypes)
+                                {
+                                    <MudSelectItem Value="profileType.Id">@profileType.Code - @profileType.Name</MudSelectItem>
+                                }
                             </MudSelect>
                         </MudItem>
                     }
-                    <!-- Steel Grade -->
-                    <MudItem xs="12" md="6">
-                        <MudSelect @bind-Value="selectedMaterialId" Label="Steel Grade" Required="true"
-                                  RequiredError="Steel grade is required" T="int?" Clearable="true">
-                            @foreach (var material in materials)
+
+                    <!-- Dimensions Section (with suggestions) -->
+                    @if (materialType == "Steel Profiles" || materialType == "Steel Sheets")
+                    {
+                        <!-- Dimension suggestions and custom input -->
+                        <MudItem xs="12" md="6">
+                            @if (dimensionSuggestions.Any())
                             {
-                                <MudSelectItem Value="material.Id">@material.Grade - @material.Description</MudSelectItem>
+                                <MudSelect @bind-Value="customDimensions" Label="Dimensions" HelperText="Select from suggestions or enter custom dimensions"
+                                          T="string" Clearable="true">
+                                    @foreach (var suggestion in dimensionSuggestions)
+                                    {
+                                        <MudSelectItem Value="@suggestion">@suggestion</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                <MudTextField @bind-Value="customDimensions" Label="Dimensions" 
+                                            Placeholder="e.g., 200x100x8 or select from profile sizes"
+                                            HelperText="Enter dimensions manually" />
+                            }
+                        </MudItem>
+                    }
+
+                    <!-- Steel Grade - After Dimensions -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="selectedSteelGradeId" Label="Steel Grade" Required="true"
+                                  RequiredError="Steel grade is required" T="int?" Clearable="true">
+                            @foreach (var steelGrade in steelGrades)
+                            {
+                                <MudSelectItem Value="steelGrade.Id">@steelGrade.Code - @steelGrade.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -93,67 +113,63 @@
                                      RequiredError="Heat number is required" />
                     </MudItem>
 
-                    <!-- Dimensions -->
-                    @if (materialType == "Steel Sheets")
+                    <!-- Additional dimension input for non-standard profiles -->
+                    @if (materialType == "Steel Profiles" && selectedProfileTypeId.HasValue && !IsStandardProfile() && string.IsNullOrWhiteSpace(customDimensions))
                     {
-                        <!-- Dimensions for Plates -->
-                        <MudItem xs="12" md="4">
-                            <MudNumericField @bind-Value="thicknessMm" Label="Thickness (mm)" Min="0.01m" T="decimal?"
-                                           Placeholder="e.g., 8" Required="true" />
-                        </MudItem>
-
-                        <MudItem xs="12" md="4">
-                            <MudNumericField @bind-Value="lengthMm" Label="Length (mm)" Min="1m" T="decimal?"
-                                           Placeholder="e.g., 6000" Required="true" />
-                        </MudItem>
-
-                        <MudItem xs="12" md="4">
-                            <MudNumericField @bind-Value="widthMm" Label="Width (mm)" Min="1m" T="decimal?"
-                                           Placeholder="e.g., 2000" Required="true" />
-                        </MudItem>
-                    }
-                    else if (materialType == "Steel Profiles")
-                    {
-                        @if (profileType == "RHS" || profileType == "L-Profile")
+                        var selectedProfileType = profileTypes.FirstOrDefault(p => p.Id == selectedProfileTypeId.Value);
+                        var profileCode = selectedProfileType?.Code ?? string.Empty;
+                        
+                        @if (profileCode == "RHS" || profileCode == "L")
                         {
                             <!-- RHS and L-Profile: Width, Height, Thickness -->
                             <MudItem xs="12" md="4">
                                 <MudNumericField @bind-Value="widthMm" Label="Width (mm)" Min="1m" T="decimal?"
-                                               Placeholder="e.g., 100" Required="true" />
+                                               Placeholder="e.g., 100" />
                             </MudItem>
 
                             <MudItem xs="12" md="4">
                                 <MudNumericField @bind-Value="heightMm" Label="Height (mm)" Min="1m" T="decimal?"
-                                               Placeholder="e.g., 50" Required="true" />
+                                               Placeholder="e.g., 50" />
                             </MudItem>
 
                             <MudItem xs="12" md="4">
                                 <MudNumericField @bind-Value="thicknessMm" Label="Thickness (mm)" Min="0.01m" T="decimal?"
-                                               Placeholder="e.g., 3" Required="true" />
+                                               Placeholder="e.g., 3" />
                             </MudItem>
                         }
-                        else if (profileType == "SHS" || profileType == "CHS")
+                        else if (profileCode == "SHS" || profileCode == "CHS")
                         {
                             <!-- SHS and CHS: Diameter/Width and Thickness -->
                             <MudItem xs="12" md="6">
-                                <MudNumericField @bind-Value="diameterMm" Label="@(profileType == "CHS" ? "Diameter (mm)" : "Width (mm)")" Min="1m" T="decimal?"
-                                               Placeholder="e.g., 100" Required="true" />
+                                <MudNumericField @bind-Value="diameterMm" Label="@(profileCode == "CHS" ? "Diameter (mm)" : "Width (mm)")" Min="1m" T="decimal?"
+                                               Placeholder="e.g., 100" />
                             </MudItem>
 
                             <MudItem xs="12" md="6">
                                 <MudNumericField @bind-Value="thicknessMm" Label="Thickness (mm)" Min="0.01m" T="decimal?"
-                                               Placeholder="e.g., 3" Required="true" />
-                            </MudItem>
-                        }
-                        else if (IsStandardProfile() && !string.IsNullOrEmpty(standardProfileSize))
-                        {
-                            <!-- Standard profiles show selected size as read-only -->
-                            <MudItem xs="12">
-                                <MudTextField Value="@standardProfileSize" Label="Profile Dimensions" ReadOnly="true" />
+                                               Placeholder="e.g., 3" />
                             </MudItem>
                         }
                     }
-                    else
+                    else if (materialType == "Steel Sheets" && string.IsNullOrWhiteSpace(customDimensions))
+                    {
+                        <!-- Dimensions for Plates -->
+                        <MudItem xs="12" md="4">
+                            <MudNumericField @bind-Value="thicknessMm" Label="Thickness (mm)" Min="0.01m" T="decimal?"
+                                           Placeholder="e.g., 8" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudNumericField @bind-Value="lengthMm" Label="Length (mm)" Min="1m" T="decimal?"
+                                           Placeholder="e.g., 6000" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudNumericField @bind-Value="widthMm" Label="Width (mm)" Min="1m" T="decimal?"
+                                           Placeholder="e.g., 2000" />
+                        </MudItem>
+                    }
+                    else if (materialType == "Other")
                     {
                         <!-- Other materials: keep original dimension fields -->
                         <MudItem xs="12" md="4">
@@ -236,9 +252,9 @@
 
     // Form fields
     private string materialType = "Steel Sheets";
-    private string profileType = string.Empty;
+    private int? selectedProfileTypeId;
     private string standardProfileSize = string.Empty;
-    private int? selectedMaterialId;
+    private int? selectedSteelGradeId;
     private decimal quantity = 0;
     private decimal unitLengthMm = 0; // For profiles
     private string heatNumber = string.Empty;
@@ -252,10 +268,14 @@
     private string invoiceReference = string.Empty;
     private decimal unitPrice = 0;
     private string notes = string.Empty;
+    private string customDimensions = string.Empty; // For manual dimension input
 
     // Data lists
     private List<Material> materials = new();
     private List<Supplier> suppliers = new();
+    private List<SteelGrade> steelGrades = new();
+    private List<ProfileType> profileTypes = new();
+    private List<string> dimensionSuggestions = new();
 
     // Standard profile sizes data
     private static readonly Dictionary<string, string[]> StandardProfileSizes = new()
@@ -280,6 +300,8 @@
         {
             materials = (await MaterialService.GetAllAsync()).ToList();
             suppliers = (await SupplierService.GetAllAsync()).ToList();
+            steelGrades = (await SteelGradeService.GetAllActiveAsync()).ToList();
+            profileTypes = (await ProfileTypeService.GetAllActiveAsync()).ToList();
         }
         catch (Exception ex)
         {
@@ -287,11 +309,13 @@
         }
     }
 
-    private void OnMaterialTypeChanged(string newMaterialType)
+    private async Task OnMaterialTypeChanged(string newMaterialType)
     {
         materialType = newMaterialType;
-        profileType = string.Empty;
+        selectedProfileTypeId = null;
         standardProfileSize = string.Empty;
+        customDimensions = string.Empty;
+        dimensionSuggestions.Clear();
         
         // Reset dimension fields
         thicknessMm = null;
@@ -300,18 +324,43 @@
         heightMm = null;
         diameterMm = null;
         unitLengthMm = 0;
+        
+        await Task.CompletedTask;
     }
 
-    private void OnProfileTypeChanged(string newProfileType)
+    private async Task OnProfileTypeChanged(int? newProfileTypeId)
     {
-        profileType = newProfileType;
+        selectedProfileTypeId = newProfileTypeId;
         standardProfileSize = string.Empty;
+        customDimensions = string.Empty;
         
         // Reset dimension fields
         thicknessMm = null;
         widthMm = null;
         heightMm = null;
         diameterMm = null;
+
+        // Load dimension suggestions for the selected profile type
+        if (newProfileTypeId.HasValue)
+        {
+            var selectedProfileType = profileTypes.FirstOrDefault(p => p.Id == newProfileTypeId.Value);
+            if (selectedProfileType != null)
+            {
+                try
+                {
+                    dimensionSuggestions = (await InventoryService.GetPopularDimensionsAsync(selectedProfileType.Code)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error loading dimension suggestions: {ex.Message}", Severity.Warning);
+                    dimensionSuggestions.Clear();
+                }
+            }
+        }
+        else
+        {
+            dimensionSuggestions.Clear();
+        }
     }
 
     private void OnStandardProfileSizeChanged(string newSize)
@@ -346,12 +395,17 @@
 
     private bool IsStandardProfile()
     {
-        return StandardProfileTypes.Contains(profileType);
+        if (!selectedProfileTypeId.HasValue) return false;
+        var selectedProfileType = profileTypes.FirstOrDefault(p => p.Id == selectedProfileTypeId.Value);
+        return selectedProfileType != null && StandardProfileTypes.Contains(selectedProfileType.Code);
     }
 
     private string[] GetStandardProfileSizes()
     {
-        return StandardProfileSizes.TryGetValue(profileType, out var sizes) ? sizes : Array.Empty<string>();
+        if (!selectedProfileTypeId.HasValue) return Array.Empty<string>();
+        var selectedProfileType = profileTypes.FirstOrDefault(p => p.Id == selectedProfileTypeId.Value);
+        if (selectedProfileType == null) return Array.Empty<string>();
+        return StandardProfileSizes.TryGetValue(selectedProfileType.Code, out var sizes) ? sizes : Array.Empty<string>();
     }
 
     private void Cancel()
@@ -367,17 +421,17 @@
         {
             try
             {
-                // Find the selected material
-                if (!selectedMaterialId.HasValue)
+                // Validate steel grade selection
+                if (!selectedSteelGradeId.HasValue)
                 {
-                    Snackbar.Add("Please select a material", Severity.Error);
+                    Snackbar.Add("Please select a steel grade", Severity.Error);
                     return;
                 }
 
-                var selectedMaterial = materials.FirstOrDefault(m => m.Id == selectedMaterialId.Value);
-                if (selectedMaterial == null)
+                var selectedSteelGrade = steelGrades.FirstOrDefault(sg => sg.Id == selectedSteelGradeId.Value);
+                if (selectedSteelGrade == null)
                 {
-                    Snackbar.Add("Please select a valid material", Severity.Error);
+                    Snackbar.Add("Please select a valid steel grade", Severity.Error);
                     return;
                 }
 
@@ -389,14 +443,34 @@
                 // Create dimension string based on material type and inputs
                 var dimensionString = BuildDimensionString();
 
-                // Create the inventory lot
+                // Get profile type name
+                var profileTypeName = string.Empty;
+                if (selectedProfileTypeId.HasValue)
+                {
+                    var selectedProfileType = profileTypes.FirstOrDefault(pt => pt.Id == selectedProfileTypeId.Value);
+                    profileTypeName = selectedProfileType?.Code ?? string.Empty;
+                }
+
+                // Create the inventory lot - using Material with matching steel grade
+                var material = materials.FirstOrDefault(m => m.Grade == selectedSteelGrade.Code);
+                if (material == null)
+                {
+                    // Create a temporary material entry or use the first available material
+                    material = materials.FirstOrDefault();
+                    if (material == null)
+                    {
+                        Snackbar.Add("No materials available in the system", Severity.Error);
+                        return;
+                    }
+                }
+
                 var inventoryLot = new InventoryLot
                 {
-                    MaterialId = selectedMaterialId.Value,
+                    MaterialId = material.Id,
                     Quantity = quantity,
                     Length = materialType == "Steel Profiles" ? unitLengthMm : lengthMm,
                     HeatNumber = heatNumber,
-                    ProfileType = materialType == "Steel Profiles" ? $"{profileType} {standardProfileSize}".Trim() : materialType,
+                    ProfileType = materialType == "Steel Profiles" ? $"{profileTypeName} {standardProfileSize}".Trim() : materialType,
                     Location = storageLocation,
                     SupplierName = supplierName,
                     InvoiceNumber = invoiceReference,
@@ -408,7 +482,7 @@
                 await InventoryService.CreateLotAsync(inventoryLot);
                 
                 var quantityText = GetQuantityUnit() == "pcs" ? $"{quantity:F0} pieces" : $"{quantity:F2} kg";
-                Snackbar.Add($"Successfully added {quantityText} of {selectedMaterial.Grade} to inventory", Severity.Success);
+                Snackbar.Add($"Successfully added {quantityText} of {selectedSteelGrade.Code} to inventory", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(inventoryLot));
             }
             catch (Exception ex)
@@ -422,6 +496,12 @@
     {
         var dimensions = new List<string>();
         
+        // Check if using custom dimensions input
+        if (!string.IsNullOrWhiteSpace(customDimensions))
+        {
+            return customDimensions;
+        }
+        
         if (materialType == "Steel Sheets")
         {
             // For plates: Thickness × Length × Width
@@ -434,23 +514,32 @@
             {
                 return standardProfileSize;
             }
-            else if (profileType == "RHS" || profileType == "L-Profile")
+            else if (selectedProfileTypeId.HasValue)
             {
-                // RHS/L-Profile: Width × Height × Thickness
-                if (widthMm.HasValue && heightMm.HasValue && thicknessMm.HasValue)
-                    return $"{widthMm.Value:F0}×{heightMm.Value:F0}×{thicknessMm.Value:F0}mm";
-            }
-            else if (profileType == "SHS")
-            {
-                // SHS: Width × Thickness
-                if (diameterMm.HasValue && thicknessMm.HasValue)
-                    return $"{diameterMm.Value:F0}×{thicknessMm.Value:F0}mm";
-            }
-            else if (profileType == "CHS")
-            {
-                // CHS: Diameter × Thickness  
-                if (diameterMm.HasValue && thicknessMm.HasValue)
-                    return $"Ø{diameterMm.Value:F0}×{thicknessMm.Value:F0}mm";
+                var selectedProfileType = profileTypes.FirstOrDefault(p => p.Id == selectedProfileTypeId.Value);
+                if (selectedProfileType != null)
+                {
+                    var profileCode = selectedProfileType.Code;
+                    
+                    if (profileCode == "RHS" || profileCode == "L")
+                    {
+                        // RHS/L-Profile: Width × Height × Thickness
+                        if (widthMm.HasValue && heightMm.HasValue && thicknessMm.HasValue)
+                            return $"{widthMm.Value:F0}×{heightMm.Value:F0}×{thicknessMm.Value:F0}mm";
+                    }
+                    else if (profileCode == "SHS")
+                    {
+                        // SHS: Width × Thickness
+                        if (diameterMm.HasValue && thicknessMm.HasValue)
+                            return $"{diameterMm.Value:F0}×{thicknessMm.Value:F0}mm";
+                    }
+                    else if (profileCode == "CHS")
+                    {
+                        // CHS: Diameter × Thickness  
+                        if (diameterMm.HasValue && thicknessMm.HasValue)
+                            return $"Ø{diameterMm.Value:F0}×{thicknessMm.Value:F0}mm";
+                    }
+                }
             }
         }
         else
