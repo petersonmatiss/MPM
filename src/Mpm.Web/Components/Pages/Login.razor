@@ -85,7 +85,7 @@
         var sessionToken = await GetSessionTokenAsync();
         if (!string.IsNullOrEmpty(sessionToken) && await AuthService.ValidateSessionAsync(sessionToken))
         {
-            Navigation.NavigateTo("/", replace: true);
+            Navigation.NavigateTo("/dashboard", replace: true);
         }
     }
 
@@ -110,8 +110,8 @@
                     // Store session token in browser
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "mpm_session", session.SessionToken);
                     
-                    // Navigate to home
-                    Navigation.NavigateTo("/", replace: true);
+                    // Navigate to dashboard
+                    Navigation.NavigateTo("/dashboard", replace: true);
                 }
                 else
                 {

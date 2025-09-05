@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <!-- Simple navigation bar for landing page -->
+    <MudAppBar Elevation="1" Style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center">
+            <MudText Variant="Variant.h6" Color="Color.Primary" Class="fw-bold">
+                <MudIcon Icon="Icons.Material.Filled.Precision" Class="me-2" />
+                MPM
+            </MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" 
+                      Color="Color.Primary" 
+                      Href="#features"
+                      Class="me-3">
+                Features
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" 
+                      Color="Color.Primary" 
+                      Href="/login"
+                      StartIcon="Icons.Material.Filled.Login">
+                Sign In
+            </MudButton>
+        </MudContainer>
+    </MudAppBar>
+    
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+    
+    <!-- Footer -->
+    <MudPaper Elevation="0" Class="pa-4 mt-auto" Style="background: rgba(248, 250, 252, 0.95);">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <div class="d-flex flex-column flex-md-row align-center justify-space-between">
+                <div class="d-flex align-center mb-3 mb-md-0">
+                    <MudIcon Icon="Icons.Material.Filled.Precision" Color="Color.Primary" Class="me-2" />
+                    <MudText Variant="Variant.body1" Color="Color.Primary" Class="fw-bold">
+                        MPM - MetalProjekts Management
+                    </MudText>
+                </div>
+                <div class="d-flex align-center">
+                    <MudText Variant="Variant.body2" Color="Color.Secondary">
+                        © @DateTime.Now.Year MPM. Built for metal fabrication excellence.
+                    </MudText>
+                </div>
+            </div>
+        </MudContainer>
+    </MudPaper>
+</MudLayout>
+
+<style>
+    .mud-layout {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .mud-main-content {
+        flex: 1;
+    }
+</style>

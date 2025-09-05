@@ -1,0 +1,224 @@
+@page "/"
+@layout Layout.LandingLayout
+
+<PageTitle>MPM - MetalProjekts Management System</PageTitle>
+
+<div class="landing-page">
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <MudGrid AlignItems="Center" Style="min-height: 100vh;">
+                <MudItem xs="12" lg="6">
+                    <div class="hero-content">
+                        <MudText Variant="Variant.h1" Class="hero-title mb-4">
+                            <span class="brand-text">MPM</span>
+                            <br />
+                            <span class="subtitle">MetalProjekts Management</span>
+                        </MudText>
+                        <MudText Variant="Variant.h6" Class="hero-description mb-6">
+                            Streamline your metal fabrication operations with our comprehensive management system. 
+                            Track inventory, manage projects, optimize workflows, and maintain compliance with 
+                            construction standards.
+                        </MudText>
+                        <div class="hero-actions">
+                            <MudButton Variant="Variant.Filled" 
+                                      Color="Color.Primary" 
+                                      Size="Size.Large"
+                                      Href="/login"
+                                      StartIcon="Icons.Material.Filled.Login"
+                                      Class="me-3 px-5 py-3">
+                                Get Started
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                      Color="Color.Primary" 
+                                      Size="Size.Large"
+                                      OnClick="ScrollToFeatures"
+                                      StartIcon="Icons.Material.Filled.Info"
+                                      Class="px-5 py-3">
+                                Learn More
+                            </MudButton>
+                        </div>
+                    </div>
+                </MudItem>
+                <MudItem xs="12" lg="6">
+                    <div class="hero-image">
+                        <MudCard Elevation="8" Class="hero-card">
+                            <MudCardContent Class="pa-6">
+                                <div class="d-flex align-center mb-4">
+                                    <MudIcon Icon="Icons.Material.Filled.Dashboard" Size="Size.Large" Color="Color.Primary" Class="me-3" />
+                                    <MudText Variant="Variant.h6" Color="Color.Primary">Live Dashboard</MudText>
+                                </div>
+                                
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="6">
+                                        <MudCard Elevation="2" Class="pa-3">
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Active Projects</MudText>
+                                            <MudText Variant="Variant.h5" Color="Color.Primary">24</MudText>
+                                        </MudCard>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudCard Elevation="2" Class="pa-3">
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Material Lots</MudText>
+                                            <MudText Variant="Variant.h5" Color="Color.Primary">156</MudText>
+                                        </MudCard>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudCard Elevation="2" Class="pa-3">
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">OEE Today</MudText>
+                                            <MudText Variant="Variant.h5" Color="Color.Success">92%</MudText>
+                                        </MudCard>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudCard Elevation="2" Class="pa-3">
+                                            <MudText Variant="Variant.body2" Color="Color.Secondary">Orders</MudText>
+                                            <MudText Variant="Variant.h5" Color="Color.Primary">38</MudText>
+                                        </MudCard>
+                                    </MudItem>
+                                </MudGrid>
+                                
+                                <MudDivider Class="my-4" />
+                                
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="Icons.Material.Filled.TrendingUp" Color="Color.Success" Class="me-2" />
+                                    <MudText Variant="Variant.body2" Color="Color.Success">Production efficiency up 15% this month</MudText>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <div class="text-center mb-12">
+                <MudText Variant="Variant.h3" GutterBottom="true">Comprehensive Metal Fabrication Management</MudText>
+                <MudText Variant="Variant.subtitle1" Color="Color.Secondary">
+                    Everything you need to manage your metal fabrication business efficiently
+                </MudText>
+            </div>
+            
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.Inventory" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Inventory Management</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Track steel profiles, sheets, and materials with lot management, 
+                                real-time availability, and automated usage calculations.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.Engineering" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Project Management</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Organize work orders, track progress, manage customer requirements, 
+                                and ensure timely delivery of your fabrication projects.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Quality & Compliance</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Generate Declarations of Performance (DOP), maintain steel grade specifications, 
+                                and ensure compliance with construction standards.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.LocalShipping" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Supply Chain</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Manage suppliers, track purchase orders, monitor deliveries, 
+                                and optimize your procurement processes.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.RequestQuote" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Financial Tracking</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Create invoices, track payments, monitor costs, 
+                                and maintain financial oversight of your operations.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="feature-card h-100">
+                        <MudCardContent Class="text-center pa-6">
+                            <MudIcon Icon="Icons.Material.Filled.Analytics" Size="Size.Large" Color="Color.Primary" Class="mb-3" />
+                            <MudText Variant="Variant.h6" GutterBottom="true">Analytics & Reporting</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">
+                                Monitor OEE, track performance metrics, generate reports, 
+                                and make data-driven decisions for your business.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" lg="8">
+                    <div class="text-center">
+                        <MudCard Elevation="8" Class="cta-card">
+                            <MudCardContent Class="pa-6">
+                                <MudText Variant="Variant.h4" GutterBottom="true" Color="Color.Primary">
+                                    Ready to Optimize Your Operations?
+                                </MudText>
+                                <MudText Variant="Variant.subtitle1" Color="Color.Secondary" Class="mb-4">
+                                    Join the leading metal fabricators who trust MPM to streamline their operations 
+                                    and improve their bottom line.
+                                </MudText>
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Primary" 
+                                          Size="Size.Large"
+                                          Href="/login"
+                                          StartIcon="Icons.Material.Filled.Login"
+                                          Class="px-5 py-3">
+                                    Access Your Dashboard
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </section>
+</div>
+
+@code {
+    private async Task ScrollToFeatures()
+    {
+        await Task.Delay(100);
+        // Simple scroll implementation - in a real app, you might use IJSRuntime
+        // for smooth scrolling to the features section
+    }
+}

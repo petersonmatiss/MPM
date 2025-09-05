@@ -56,6 +56,8 @@ public class AuthenticationMiddleware
     {
         var publicPaths = new[]
         {
+            "/",
+            "/landing",
             "/login",
             "/logout",
             "/access-denied",
