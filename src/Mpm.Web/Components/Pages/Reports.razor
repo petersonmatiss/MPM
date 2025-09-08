@@ -1,0 +1,379 @@
+@page "/reports"
+@using Mpm.Domain
+@using Mpm.Domain.Entities
+@using Mpm.Services
+@using Mpm.Services.DTOs
+@using System.Globalization
+@inject IReportingService ReportingService
+@inject ISupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<PageTitle>Reports - MPM</PageTitle>
+
+<MudText Variant="Variant.h3" GutterBottom="true">Reports & Analytics</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <!-- Filter Controls -->
+        <MudExpansionPanels MultiExpansion="false" Elevation="1">
+            <MudExpansionPanel Text="Report Filters">
+                <div class="d-flex gap-4 flex-wrap align-center">
+                    <MudDatePicker @bind-Date="fromDate" Label="From Date" Placeholder="Select start date" />
+                    <MudDatePicker @bind-Date="toDate" Label="To Date" Placeholder="Select end date" />
+                    <MudSelect @bind-Value="selectedSupplierId" Label="Supplier" Clearable="true">
+                        @foreach (var supplier in suppliers)
+                        {
+                            <MudSelectItem Value="supplier.Id">@supplier.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudTextField @bind-Value="materialGradeFilter" Label="Material Grade" Placeholder="e.g., S235" />
+                    <MudTextField @bind-Value="profileTypeFilter" Label="Profile Type" Placeholder="e.g., IPE" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters" StartIcon="Icons.Material.Filled.FilterList">
+                        Apply Filters
+                    </MudButton>
+                </div>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+        
+        <!-- Report Tabs -->
+        <MudTabs Elevation="2" Rounded="true" Class="mt-4">
+            <!-- Inventory Report Tab -->
+            <MudTabPanel Text="Inventory Report">
+                <div class="pa-4">
+                    @if (loading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <!-- Inventory Summary Cards -->
+                        <div class="d-flex gap-4 mb-4 flex-wrap">
+                            @if (inventorySummary != null)
+                            {
+                                <MudCard Elevation="2" Style="min-width: 200px;">
+                                    <MudCardContent Class="pa-4">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="Icons.Material.Filled.Inventory" Color="Color.Primary" />
+                                            <div>
+                                                <MudText Variant="Variant.h6">@inventorySummary.TotalInventoryValue.ToString("C")</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">Total Value</MudText>
+                                            </div>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                                
+                                <MudCard Elevation="2" Style="min-width: 200px;">
+                                    <MudCardContent Class="pa-4">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="Icons.Material.Filled.Category" Color="Color.Info" />
+                                            <div>
+                                                <MudText Variant="Variant.h6">@inventorySummary.TotalLots</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">Total Lots</MudText>
+                                            </div>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                                
+                                <MudCard Elevation="2" Style="min-width: 200px;">
+                                    <MudCardContent Class="pa-4">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="Icons.Material.Filled.Warning" Color="Color.Warning" />
+                                            <div>
+                                                <MudText Variant="Variant.h6">@inventorySummary.LowStockItems</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">Low Stock Items</MudText>
+                                            </div>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                                
+                                <MudCard Elevation="2" Style="min-width: 200px;">
+                                    <MudCardContent Class="pa-4">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="Icons.Material.Filled.Lock" Color="Color.Secondary" />
+                                            <div>
+                                                <MudText Variant="Variant.h6">@inventorySummary.ReservedValue.ToString("C")</MudText>
+                                                <MudText Variant="Variant.body2" Color="Color.Secondary">Reserved Value</MudText>
+                                            </div>
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </div>
+                        
+                        <!-- Inventory Data Grid -->
+                        <MudDataGrid Items="@inventoryReport" Filterable="true" SortMode="SortMode.Multiple" 
+                                     RowsPerPage="20" Height="500px">
+                            <Columns>
+                                <PropertyColumn Property="x => x.MaterialGrade" Title="Grade" />
+                                <PropertyColumn Property="x => x.ProfileType" Title="Profile Type" />
+                                <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
+                                <PropertyColumn Property="x => x.TotalQuantity" Title="Total Qty (kg)" Format="F2" />
+                                <PropertyColumn Property="x => x.AvailableQuantity" Title="Available Qty (kg)" Format="F2" />
+                                <PropertyColumn Property="x => x.LotCount" Title="Lots" />
+                                <PropertyColumn Property="x => x.AverageUnitPrice" Title="Avg Price" Format="C2" />
+                                <PropertyColumn Property="x => x.TotalValue" Title="Total Value" Format="C2" />
+                                <PropertyColumn Property="x => x.PrimarySupplier" Title="Primary Supplier" />
+                                <TemplateColumn Title="Stock Status">
+                                    <CellTemplate>
+                                        @if (context.Item!.IsLowStock)
+                                        {
+                                            <MudChip Color="Color.Warning" Size="Size.Small">Low Stock</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Color="Color.Success" Size="Size.Small">Adequate</MudChip>
+                                        }
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                </div>
+            </MudTabPanel>
+            
+            <!-- Price Requests Report Tab -->
+            <MudTabPanel Text="Price Requests">
+                <div class="pa-4">
+                    @if (loading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudDataGrid Items="@priceRequestReport" Filterable="true" SortMode="SortMode.Multiple" 
+                                     RowsPerPage="20" Height="500px">
+                            <Columns>
+                                <PropertyColumn Property="x => x.Number" Title="Request Number" />
+                                <PropertyColumn Property="x => x.Description" Title="Description" />
+                                <PropertyColumn Property="x => x.Status" Title="Status" />
+                                <PropertyColumn Property="x => x.RequestDate" Title="Request Date" Format="yyyy-MM-dd" />
+                                <PropertyColumn Property="x => x.RequestedBy" Title="Requested By" />
+                                <PropertyColumn Property="x => x.LineCount" Title="Lines" />
+                                <PropertyColumn Property="x => x.DaysInStatus" Title="Days in Status" />
+                                <TemplateColumn Title="Status">
+                                    <CellTemplate>
+                                        @if (context.Item!.IsOverdue)
+                                        {
+                                            <MudChip Color="Color.Error" Size="Size.Small">Overdue</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Color="@GetStatusColor(context.Item.Status)" Size="Size.Small">@context.Item.Status</MudChip>
+                                        }
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                </div>
+            </MudTabPanel>
+            
+            <!-- Purchase Orders Report Tab -->
+            <MudTabPanel Text="Purchase Orders">
+                <div class="pa-4">
+                    @if (loading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudDataGrid Items="@purchaseOrderReport" Filterable="true" SortMode="SortMode.Multiple" 
+                                     RowsPerPage="20" Height="500px">
+                            <Columns>
+                                <PropertyColumn Property="x => x.Number" Title="PO Number" />
+                                <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                                <PropertyColumn Property="x => x.OrderDate" Title="Order Date" Format="yyyy-MM-dd" />
+                                <PropertyColumn Property="x => x.DeliveryDate" Title="Delivery Date" Format="yyyy-MM-dd" />
+                                <PropertyColumn Property="x => x.TotalValue" Title="Total Value" Format="C2" />
+                                <PropertyColumn Property="x => x.LineCount" Title="Lines" />
+                                <PropertyColumn Property="x => x.DaysToDelivery" Title="Days to Delivery" />
+                                <PropertyColumn Property="x => x.ProjectName" Title="Project" />
+                                <TemplateColumn Title="Status">
+                                    <CellTemplate>
+                                        @if (context.Item!.IsOverdue)
+                                        {
+                                            <MudChip Color="Color.Error" Size="Size.Small">Overdue</MudChip>
+                                        }
+                                        else if (context.Item.IsDelivered)
+                                        {
+                                            <MudChip Color="Color.Success" Size="Size.Small">Delivered</MudChip>
+                                        }
+                                        else if (context.Item.IsConfirmed)
+                                        {
+                                            <MudChip Color="Color.Info" Size="Size.Small">Confirmed</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Color="Color.Warning" Size="Size.Small">Pending</MudChip>
+                                        }
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                </div>
+            </MudTabPanel>
+            
+            <!-- Supplier Performance Tab -->
+            <MudTabPanel Text="Supplier Performance">
+                <div class="pa-4">
+                    @if (loading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudDataGrid Items="@supplierPerformanceReport" Filterable="true" SortMode="SortMode.Multiple" 
+                                     RowsPerPage="20" Height="500px">
+                            <Columns>
+                                <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                                <PropertyColumn Property="x => x.TotalOrders" Title="Total Orders" />
+                                <PropertyColumn Property="x => x.TotalOrderValue" Title="Total Value" Format="C2" />
+                                <PropertyColumn Property="x => x.AverageOrderValue" Title="Avg Order Value" Format="C2" />
+                                <PropertyColumn Property="x => x.AverageDeliveryDays" Title="Avg Delivery (days)" Format="F1" />
+                                <PropertyColumn Property="x => x.OnTimeDeliveryRate" Title="On-Time Rate %" Format="F1" />
+                                <PropertyColumn Property="x => x.AveragePricePerKg" Title="Avg Price/kg" Format="C2" />
+                                <TemplateColumn Title="Performance">
+                                    <CellTemplate>
+                                        @{
+                                            var performance = context.Item!;
+                                            var scoreColor = performance.OnTimeDeliveryRate >= 90 ? Color.Success : 
+                                                           performance.OnTimeDeliveryRate >= 70 ? Color.Warning : Color.Error;
+                                        }
+                                        <MudChip Color="@scoreColor" Size="Size.Small">
+                                            @performance.OnTimeDeliveryRate.ToString("F1")% On-Time
+                                        </MudChip>
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                </div>
+            </MudTabPanel>
+            
+            <!-- Material Cost Trends Tab -->
+            <MudTabPanel Text="Cost Trends">
+                <div class="pa-4">
+                    @if (loading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudDataGrid Items="@materialCostTrends" Filterable="true" SortMode="SortMode.Multiple" 
+                                     RowsPerPage="20" Height="500px">
+                            <Columns>
+                                <PropertyColumn Property="x => x.Date" Title="Date" Format="yyyy-MM-dd" />
+                                <PropertyColumn Property="x => x.MaterialGrade" Title="Grade" />
+                                <PropertyColumn Property="x => x.ProfileType" Title="Profile Type" />
+                                <PropertyColumn Property="x => x.Dimension" Title="Dimension" />
+                                <PropertyColumn Property="x => x.UnitPrice" Title="Unit Price" Format="C2" />
+                                <PropertyColumn Property="x => x.SupplierName" Title="Supplier" />
+                                <PropertyColumn Property="x => x.Quantity" Title="Quantity (kg)" Format="F2" />
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool loading = true;
+    private DateTime? fromDate = DateTime.UtcNow.AddMonths(-6);
+    private DateTime? toDate = DateTime.UtcNow;
+    private int? selectedSupplierId;
+    private string materialGradeFilter = "";
+    private string profileTypeFilter = "";
+    
+    private List<Supplier> suppliers = new();
+    private InventoryLevelSummaryDto? inventorySummary;
+    private List<InventoryReportDto> inventoryReport = new();
+    private List<PriceRequestReportDto> priceRequestReport = new();
+    private List<PurchaseOrderReportDto> purchaseOrderReport = new();
+    private List<SupplierPerformanceDto> supplierPerformanceReport = new();
+    private List<MaterialCostTrendDto> materialCostTrends = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            suppliers = (await SupplierService.GetAllAsync()).ToList();
+            await LoadAllReports();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading reports: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        loading = true;
+        try
+        {
+            await LoadAllReports();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error applying filters: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadAllReports()
+    {
+        var filter = new ReportFilterDto
+        {
+            FromDate = fromDate,
+            ToDate = toDate,
+            SupplierId = selectedSupplierId,
+            MaterialGrade = string.IsNullOrWhiteSpace(materialGradeFilter) ? null : materialGradeFilter,
+            ProfileType = string.IsNullOrWhiteSpace(profileTypeFilter) ? null : profileTypeFilter
+        };
+
+        // Load all reports in parallel for better performance
+        var inventorySummaryTask = ReportingService.GetInventoryLevelSummaryAsync();
+        var inventoryReportTask = ReportingService.GetInventoryReportAsync(filter);
+        var priceRequestReportTask = ReportingService.GetPriceRequestReportAsync(filter);
+        var purchaseOrderReportTask = ReportingService.GetPurchaseOrderReportAsync(filter);
+        var supplierPerformanceReportTask = ReportingService.GetSupplierPerformanceReportAsync(filter);
+        var materialCostTrendsTask = ReportingService.GetMaterialCostTrendsAsync(filter);
+
+        await Task.WhenAll(
+            inventorySummaryTask,
+            inventoryReportTask, 
+            priceRequestReportTask, 
+            purchaseOrderReportTask, 
+            supplierPerformanceReportTask, 
+            materialCostTrendsTask
+        );
+
+        inventorySummary = await inventorySummaryTask;
+        inventoryReport = (await inventoryReportTask).ToList();
+        priceRequestReport = (await priceRequestReportTask).ToList();
+        purchaseOrderReport = (await purchaseOrderReportTask).ToList();
+        supplierPerformanceReport = (await supplierPerformanceReportTask).ToList();
+        materialCostTrends = (await materialCostTrendsTask).ToList();
+    }
+
+    private Color GetStatusColor(PriceRequestStatus status)
+    {
+        return status switch
+        {
+            PriceRequestStatus.Draft => Color.Secondary,
+            PriceRequestStatus.Submitted => Color.Warning,
+            PriceRequestStatus.Quoted => Color.Success,
+            PriceRequestStatus.Rejected => Color.Error,
+            _ => Color.Default
+        };
+    }
+}
