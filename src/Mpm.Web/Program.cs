@@ -30,6 +30,9 @@ builder.Services.AddRazorComponents()
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
+// Add controllers for API endpoints
+builder.Services.AddControllers();
+
 // Add HTTP context accessor for tenant resolution
 builder.Services.AddHttpContextAccessor();
 
@@ -212,6 +215,9 @@ app.UseAntiforgery();
 
 // Add custom authentication middleware
 app.UseMiddleware<AuthenticationMiddleware>();
+
+// Map controllers for API endpoints
+app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
