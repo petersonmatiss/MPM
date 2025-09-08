@@ -82,7 +82,7 @@
                                                                           RequiredError="Profile type is required" T="int?" Clearable="true">
                                                                     @foreach (var profileType in profileTypes)
                                                                     {
-                                                                        <MudSelectItem Value="profileType.Id">@profileType.Code - @profileType.Name</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)profileType.Id)">@profileType.Code - @profileType.Name</MudSelectItem>
                                                                     }
                                                                 </MudSelect>
                                                             </MudItem>
@@ -121,7 +121,7 @@
                                                                       RequiredError="Steel grade is required" T="int?" Clearable="true">
                                                                 @foreach (var steelGrade in steelGrades)
                                                                 {
-                                                                    <MudSelectItem Value="steelGrade.Id">@steelGrade.Code - @steelGrade.Name</MudSelectItem>
+                                                                    <MudSelectItem Value="@((int?)steelGrade.Id)">@steelGrade.Code - @steelGrade.Name</MudSelectItem>
                                                                 }
                                                             </MudSelect>
                                                         </MudItem>
