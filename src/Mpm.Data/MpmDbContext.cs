@@ -28,6 +28,7 @@ public class MpmDbContext : DbContext
     public DbSet<InventoryLot> InventoryLots { get; set; }
     public DbSet<MaterialReservation> MaterialReservations { get; set; }
     public DbSet<Certificate> Certificates { get; set; }
+    public DbSet<InventoryAuditLog> InventoryAuditLogs { get; set; }
     
     // Work orders and operations
     public DbSet<WorkOrder> WorkOrders { get; set; }
@@ -82,6 +83,7 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<InventoryLot>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<MaterialReservation>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<Certificate>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<InventoryAuditLog>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<WorkOrder>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<WorkOrderOperation>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<NonConformanceReport>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);

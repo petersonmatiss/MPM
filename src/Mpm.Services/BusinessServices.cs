@@ -37,6 +37,7 @@ public interface IInventoryService
     Task<InventoryLot> UpdateLotAsync(InventoryLot lot);
     Task DeleteLotAsync(int id);
     Task<IEnumerable<string>> GetPopularDimensionsAsync(string profileType, int limit = 10);
+    Task CreateInventoryAuditLogAsync(int inventoryLotId, string action, decimal? previousQuantity, decimal? newQuantity, string changeReason, string referenceDocument, string details = "");
 }
 
 public interface IQuotationService
@@ -208,6 +209,8 @@ public class InventoryService : IInventoryService
         if (lot == null) throw new ArgumentException("Lot not found");
         if (lot.Quantity < quantity) throw new InvalidOperationException("Insufficient quantity available");
 
+        var previousQuantity = lot.Quantity;
+        
         var reservation = new MaterialReservation
         {
             InventoryLotId = lotId,
@@ -230,6 +233,12 @@ public class InventoryService : IInventoryService
         }
 
         await _context.SaveChangesAsync();
+        
+        // Create audit log for reservation
+        await CreateInventoryAuditLogAsync(lotId, "Reserved", previousQuantity, quantity, 
+            "Material reserved", reservation.Id.ToString(), 
+            $"Reserved {quantity} for {(projectId.HasValue ? $"Project {projectId}" : $"WorkOrder {workOrderId}")}");
+            
         return reservation;
     }
 
@@ -253,10 +262,17 @@ public class InventoryService : IInventoryService
             .Where(r => r.InventoryLotId == lotId)
             .ToListAsync();
 
+        var totalReservedQuantity = reservations.Sum(r => r.ReservedQuantity);
+        
         _context.MaterialReservations.RemoveRange(reservations);
         lot.IsReserved = false;
 
         await _context.SaveChangesAsync();
+        
+        // Create audit log for unreservation
+        await CreateInventoryAuditLogAsync(lotId, "Unreserved", totalReservedQuantity, lot.Quantity, 
+            "Material unreserved", lot.Id.ToString(), 
+            $"Removed {reservations.Count} reservations totaling {totalReservedQuantity}");
     }
 
     public async Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType)
@@ -338,6 +354,24 @@ public class InventoryService : IInventoryService
             .Take(limit)
             .Select(g => g.Key)
             .ToList();
+    }
+
+    public async Task CreateInventoryAuditLogAsync(int inventoryLotId, string action, decimal? previousQuantity, 
+        decimal? newQuantity, string changeReason, string referenceDocument, string details = "")
+    {
+        var auditLog = new InventoryAuditLog
+        {
+            InventoryLotId = inventoryLotId,
+            Action = action,
+            PreviousQuantity = previousQuantity,
+            NewQuantity = newQuantity,
+            ChangeReason = changeReason,
+            ReferenceDocument = referenceDocument,
+            Details = details
+        };
+
+        _context.InventoryAuditLogs.Add(auditLog);
+        await _context.SaveChangesAsync();
     }
 }
 

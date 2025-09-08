@@ -8,6 +8,11 @@ public class GoodsReceiptNote : TenantEntity
     public string DeliveryNoteNumber { get; set; } = string.Empty;
     public string ReceivedBy { get; set; } = string.Empty;
     public string Comments { get; set; } = string.Empty;
+    
+    // Invoice and payment tracking
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public string PaymentTerms { get; set; } = string.Empty;
+    public bool IsPartialDelivery { get; set; } = false;
 
     // Navigation properties
     public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
@@ -22,6 +27,11 @@ public class GoodsReceiptNoteLine : TenantEntity
     public string UnitOfMeasure { get; set; } = Constants.UnitOfMeasure.Kilogram;
     public string HeatNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
+    
+    // Price tracking and adjustments
+    public decimal ActualUnitPrice { get; set; }
+    public decimal QuantityDeviation { get; set; } = 0; // Difference from ordered quantity
+    public string DeviationReason { get; set; } = string.Empty;
 
     // Navigation properties
     public virtual GoodsReceiptNote GoodsReceiptNote { get; set; } = null!;
@@ -85,4 +95,18 @@ public class Certificate : TenantEntity
 
     // Navigation properties
     public virtual ICollection<InventoryLot> InventoryLots { get; set; } = new List<InventoryLot>();
+}
+
+public class InventoryAuditLog : TenantEntity
+{
+    public int InventoryLotId { get; set; }
+    public string Action { get; set; } = string.Empty; // "Created", "Updated", "Reserved", "Unreserved", "Consumed"
+    public decimal? PreviousQuantity { get; set; }
+    public decimal? NewQuantity { get; set; }
+    public string ChangeReason { get; set; } = string.Empty;
+    public string ReferenceDocument { get; set; } = string.Empty; // GRN number, WorkOrder number, etc.
+    public string Details { get; set; } = string.Empty; // JSON or text details of the change
+
+    // Navigation properties
+    public virtual InventoryLot InventoryLot { get; set; } = null!;
 }
