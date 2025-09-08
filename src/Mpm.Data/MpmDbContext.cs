@@ -23,6 +23,8 @@ public class MpmDbContext : DbContext
     public DbSet<Supplier> Suppliers { get; set; }
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; }
     public DbSet<PurchaseOrderLine> PurchaseOrderLines { get; set; }
+    public DbSet<PurchaseOrderDocument> PurchaseOrderDocuments { get; set; }
+    public DbSet<PurchaseOrderCommunication> PurchaseOrderCommunications { get; set; }
     public DbSet<GoodsReceiptNote> GoodsReceiptNotes { get; set; }
     public DbSet<GoodsReceiptNoteLine> GoodsReceiptNoteLines { get; set; }
     public DbSet<InventoryLot> InventoryLots { get; set; }
@@ -78,6 +80,8 @@ public class MpmDbContext : DbContext
         modelBuilder.Entity<Supplier>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<PurchaseOrderLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseOrderDocument>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
+        modelBuilder.Entity<PurchaseOrderCommunication>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNote>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<GoodsReceiptNoteLine>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
         modelBuilder.Entity<InventoryLot>().HasQueryFilter(e => e.TenantId == TenantId && !e.IsDeleted);
