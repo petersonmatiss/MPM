@@ -25,7 +25,7 @@
                             <MudSelectItem Value="@((int?)null)">-- Select Grade --</MudSelectItem>
                             @foreach (var grade in steelGrades)
                             {
-                                <MudSelectItem Value="@grade.Id">@grade.Code - @grade.Name</MudSelectItem>
+                                <MudSelectItem Value="@((int?)grade.Id)">@grade.Code - @grade.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -36,7 +36,7 @@
                             <MudSelectItem Value="@((int?)null)">-- Select Type --</MudSelectItem>
                             @foreach (var type in profileTypes)
                             {
-                                <MudSelectItem Value="@type.Id">@type.Code - @type.Name</MudSelectItem>
+                                <MudSelectItem Value="@((int?)type.Id)">@type.Code - @type.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
