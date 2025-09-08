@@ -108,3 +108,14 @@ public enum MaterialType
     Sheet,
     Profile
 }
+
+public enum PurchaseOrderStatus
+{
+    Draft,
+    Sent,
+    Acknowledged,
+    InProduction,
+    Shipped,
+    Received,
+    Cancelled
+}

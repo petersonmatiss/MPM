@@ -1,5 +1,6 @@
 using Mpm.Data;
 using Mpm.Domain.Entities;
+using Mpm.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Mpm.Services;
@@ -58,6 +59,20 @@ public interface IPurchaseOrderService
     Task DeleteAsync(int id);
     Task<PurchaseOrder> ConfirmOrderAsync(int id);
     Task<IEnumerable<PurchaseOrder>> GetBySupplierAsync(int supplierId);
+    
+    // New status management methods
+    Task<PurchaseOrder> UpdateStatusAsync(int id, PurchaseOrderStatus status);
+    Task<PurchaseOrder> SendToSupplierAsync(int id);
+    
+    // Document management methods
+    Task<PurchaseOrderDocument> AddDocumentAsync(PurchaseOrderDocument document);
+    Task<IEnumerable<PurchaseOrderDocument>> GetDocumentsAsync(int purchaseOrderId);
+    Task DeleteDocumentAsync(int documentId);
+    
+    // Communication management methods
+    Task<PurchaseOrderCommunication> AddCommunicationAsync(PurchaseOrderCommunication communication);
+    Task<IEnumerable<PurchaseOrderCommunication>> GetCommunicationsAsync(int purchaseOrderId);
+    Task<PurchaseOrderCommunication> UpdateCommunicationAsync(PurchaseOrderCommunication communication);
 }
 
 public class MaterialService : IMaterialService
@@ -391,6 +406,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Include(po => po.Project)
             .Include(po => po.Lines)
                 .ThenInclude(l => l.Material)
+            .Include(po => po.Documents)
+            .Include(po => po.Communications)
             .OrderByDescending(po => po.OrderDate)
             .ToListAsync();
     }
@@ -402,6 +419,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Include(po => po.Project)
             .Include(po => po.Lines)
                 .ThenInclude(l => l.Material)
+            .Include(po => po.Documents)
+            .Include(po => po.Communications)
             .FirstOrDefaultAsync(po => po.Id == id);
     }
 
@@ -449,6 +468,85 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .ThenInclude(l => l.Material)
             .OrderByDescending(po => po.OrderDate)
             .ToListAsync();
+    }
+
+    // New status management methods
+    public async Task<PurchaseOrder> UpdateStatusAsync(int id, PurchaseOrderStatus status)
+    {
+        var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseOrder == null)
+            throw new ArgumentException("Purchase order not found");
+
+        purchaseOrder.Status = status;
+        
+        // Update IsConfirmed based on status for backward compatibility
+        purchaseOrder.IsConfirmed = status >= PurchaseOrderStatus.Sent;
+        
+        await _context.SaveChangesAsync();
+        return purchaseOrder;
+    }
+
+    public async Task<PurchaseOrder> SendToSupplierAsync(int id)
+    {
+        var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseOrder == null)
+            throw new ArgumentException("Purchase order not found");
+
+        purchaseOrder.Status = PurchaseOrderStatus.Sent;
+        purchaseOrder.SentDate = DateTime.UtcNow;
+        purchaseOrder.IsConfirmed = true;
+        
+        await _context.SaveChangesAsync();
+        return purchaseOrder;
+    }
+
+    // Document management methods
+    public async Task<PurchaseOrderDocument> AddDocumentAsync(PurchaseOrderDocument document)
+    {
+        _context.PurchaseOrderDocuments.Add(document);
+        await _context.SaveChangesAsync();
+        return document;
+    }
+
+    public async Task<IEnumerable<PurchaseOrderDocument>> GetDocumentsAsync(int purchaseOrderId)
+    {
+        return await _context.PurchaseOrderDocuments
+            .Where(d => d.PurchaseOrderId == purchaseOrderId)
+            .OrderByDescending(d => d.UploadedAt)
+            .ToListAsync();
+    }
+
+    public async Task DeleteDocumentAsync(int documentId)
+    {
+        var document = await _context.PurchaseOrderDocuments.FindAsync(documentId);
+        if (document != null)
+        {
+            _context.PurchaseOrderDocuments.Remove(document);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    // Communication management methods
+    public async Task<PurchaseOrderCommunication> AddCommunicationAsync(PurchaseOrderCommunication communication)
+    {
+        _context.PurchaseOrderCommunications.Add(communication);
+        await _context.SaveChangesAsync();
+        return communication;
+    }
+
+    public async Task<IEnumerable<PurchaseOrderCommunication>> GetCommunicationsAsync(int purchaseOrderId)
+    {
+        return await _context.PurchaseOrderCommunications
+            .Where(c => c.PurchaseOrderId == purchaseOrderId)
+            .OrderByDescending(c => c.CommunicationDate)
+            .ToListAsync();
+    }
+
+    public async Task<PurchaseOrderCommunication> UpdateCommunicationAsync(PurchaseOrderCommunication communication)
+    {
+        _context.PurchaseOrderCommunications.Update(communication);
+        await _context.SaveChangesAsync();
+        return communication;
     }
 
     public async Task<IEnumerable<InventoryLot>> GetLotsByTypeAsync(string profileType)

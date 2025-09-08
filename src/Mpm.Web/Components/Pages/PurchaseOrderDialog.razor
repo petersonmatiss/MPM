@@ -1,4 +1,5 @@
 @using Mpm.Domain.Entities
+@using Mpm.Domain
 @using Mpm.Services
 @inject IPurchaseOrderService PurchaseOrderService
 @inject ISupplierService SupplierService
@@ -72,7 +73,17 @@
                                      Placeholder="e.g., EXW, FCA, DAP" />
                     </MudItem>
 
-                    <!-- Confirmed Status -->
+                    <!-- Status -->
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="purchaseOrder.Status" Label="Status" T="PurchaseOrderStatus">
+                            @foreach (var status in Enum.GetValues<PurchaseOrderStatus>())
+                            {
+                                <MudSelectItem Value="@status">@GetStatusText(status)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Confirmed Status (for backward compatibility) -->
                     <MudItem xs="12" md="6">
                         <MudSwitch @bind-Value="purchaseOrder.IsConfirmed" Label="Confirmed" T="bool" />
                     </MudItem>
@@ -527,5 +538,20 @@
             Snackbar.Add($"Error loading dimension suggestions: {ex.Message}", Severity.Warning);
             lineDimensionSuggestions[line] = new List<string>();
         }
+    }
+
+    private string GetStatusText(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Draft => "Draft",
+            PurchaseOrderStatus.Sent => "Sent",
+            PurchaseOrderStatus.Acknowledged => "Acknowledged",
+            PurchaseOrderStatus.InProduction => "In Production",
+            PurchaseOrderStatus.Shipped => "Shipped",
+            PurchaseOrderStatus.Received => "Received",
+            PurchaseOrderStatus.Cancelled => "Cancelled",
+            _ => "Unknown"
+        };
     }
 }

@@ -1,5 +1,6 @@
 @page "/purchase-orders"
 @using Mpm.Domain.Entities
+@using Mpm.Domain
 @using Mpm.Services
 @inject IPurchaseOrderService PurchaseOrderService
 @inject IDialogService DialogService
@@ -56,10 +57,10 @@
             <MudCard Elevation="2" Style="min-width: 200px;">
                 <MudCardContent Class="pa-4">
                     <div class="d-flex align-center gap-2">
-                        <MudIcon Icon="Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                        <MudIcon Icon="Icons.Material.Filled.Send" Color="Color.Primary" />
                         <div>
-                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => po.IsConfirmed)</MudText>
-                            <MudText Variant="Variant.body2" Color="Color.Secondary">Confirmed</MudText>
+                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => po.Status == PurchaseOrderStatus.Sent)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Sent</MudText>
                         </div>
                     </div>
                 </MudCardContent>
@@ -68,10 +69,10 @@
             <MudCard Elevation="2" Style="min-width: 200px;">
                 <MudCardContent Class="pa-4">
                     <div class="d-flex align-center gap-2">
-                        <MudIcon Icon="Icons.Material.Filled.Schedule" Color="Color.Warning" />
+                        <MudIcon Icon="Icons.Material.Filled.Edit" Color="Color.Warning" />
                         <div>
-                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => !po.IsConfirmed)</MudText>
-                            <MudText Variant="Variant.body2" Color="Color.Secondary">Pending</MudText>
+                            <MudText Variant="Variant.h6">@filteredPurchaseOrders.Count(po => po.Status == PurchaseOrderStatus.Draft)</MudText>
+                            <MudText Variant="Variant.body2" Color="Color.Secondary">Draft</MudText>
                         </div>
                     </div>
                 </MudCardContent>
@@ -83,11 +84,11 @@
                      Loading="@loading" RowsPerPage="20" Height="600px">
             <Columns>
                 <!-- Status Indicator -->
-                <TemplateColumn Title="Status" Sortable="false" Filterable="false" CellClass="text-center">
+                <TemplateColumn Title="Status" Sortable="true" SortBy="@(x => x.Status)" CellClass="text-center">
                     <CellTemplate>
-                        <MudIcon Icon="@(context.Item!.IsConfirmed ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)" 
-                                Color="@(context.Item.IsConfirmed ? Color.Success : Color.Warning)" 
-                                Size="Size.Small" />
+                        <MudChip Color="@GetStatusColor(context.Item!.Status)" Size="Size.Small" Variant="Variant.Filled">
+                            @GetStatusText(context.Item.Status)
+                        </MudChip>
                     </CellTemplate>
                 </TemplateColumn>
 
@@ -114,18 +115,15 @@
                     </CellTemplate>
                 </TemplateColumn>
 
-                <!-- Currency -->
-                <PropertyColumn Property="x => x.Currency" Title="Currency" />
-
-                <!-- Status -->
-                <TemplateColumn Title="Order Status" Sortable="true" SortBy="@(x => x.IsConfirmed)">
+                <!-- Sent Date -->
+                <TemplateColumn Title="Sent Date" Sortable="true" SortBy="@(x => x.SentDate)">
                     <CellTemplate>
-                        <MudChip Color="@(context.Item!.IsConfirmed ? Color.Success : Color.Warning)" 
-                                Size="Size.Small" Icon="@(context.Item.IsConfirmed ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Schedule)">
-                            @(context.Item.IsConfirmed ? "Confirmed" : "Pending")
-                        </MudChip>
+                        @(context.Item!.SentDate?.ToString("yyyy-MM-dd") ?? "Not sent")
                     </CellTemplate>
                 </TemplateColumn>
+
+                <!-- Currency -->
+                <PropertyColumn Property="x => x.Currency" Title="Currency" />
 
                 <!-- Project -->
                 <TemplateColumn Title="Project">
@@ -152,7 +150,14 @@
                         <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Edit" 
                                       OnClick="@(() => EditPurchaseOrder(context.Item))"
                                       Title="Edit" />
-                        @if (!context.Item!.IsConfirmed)
+                        @if (context.Item!.Status == PurchaseOrderStatus.Draft)
+                        {
+                            <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Send" 
+                                          Color="Color.Primary"
+                                          OnClick="@(() => SendToSupplier(context.Item))"
+                                          Title="Send to Supplier" />
+                        }
+                        @if (!context.Item.IsConfirmed)
                         {
                             <MudIconButton Size="@Size.Small" Icon="Icons.Material.Outlined.Check" 
                                           Color="Color.Success"
@@ -267,8 +272,9 @@
                      $"Supplier: {purchaseOrder.Supplier?.Name}\n" +
                      $"Order Date: {purchaseOrder.OrderDate:yyyy-MM-dd}\n" +
                      $"Delivery Date: {purchaseOrder.DeliveryDate?.ToString("yyyy-MM-dd") ?? "Not set"}\n" +
+                     $"Sent Date: {purchaseOrder.SentDate?.ToString("yyyy-MM-dd") ?? "Not sent"}\n" +
                      $"Currency: {purchaseOrder.Currency}\n" +
-                     $"Status: {(purchaseOrder.IsConfirmed ? "Confirmed" : "Pending")}\n" +
+                     $"Status: {GetStatusText(purchaseOrder.Status)}\n" +
                      $"Lines: {purchaseOrder.Lines.Count}\n" +
                      $"Project: {purchaseOrder.Project?.Name ?? "N/A"}\n" +
                      $"Notes: {purchaseOrder.Notes}";
@@ -279,5 +285,49 @@
             config.ShowCloseIcon = true;
             config.VisibleStateDuration = 15000;
         });
+    }
+
+    private async Task SendToSupplier(PurchaseOrder purchaseOrder)
+    {
+        try
+        {
+            await PurchaseOrderService.SendToSupplierAsync(purchaseOrder.Id);
+            Snackbar.Add($"Purchase Order {purchaseOrder.Number} sent to supplier successfully", Severity.Success);
+            await LoadPurchaseOrders();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending purchase order: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Draft => Color.Default,
+            PurchaseOrderStatus.Sent => Color.Primary,
+            PurchaseOrderStatus.Acknowledged => Color.Info,
+            PurchaseOrderStatus.InProduction => Color.Warning,
+            PurchaseOrderStatus.Shipped => Color.Tertiary,
+            PurchaseOrderStatus.Received => Color.Success,
+            PurchaseOrderStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusText(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Draft => "Draft",
+            PurchaseOrderStatus.Sent => "Sent",
+            PurchaseOrderStatus.Acknowledged => "Acknowledged",
+            PurchaseOrderStatus.InProduction => "In Production",
+            PurchaseOrderStatus.Shipped => "Shipped",
+            PurchaseOrderStatus.Received => "Received",
+            PurchaseOrderStatus.Cancelled => "Cancelled",
+            _ => "Unknown"
+        };
     }
 }

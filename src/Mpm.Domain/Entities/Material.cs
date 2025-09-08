@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Mpm.Domain;
 
 namespace Mpm.Domain.Entities;
 
@@ -63,16 +64,20 @@ public class PurchaseOrder : TenantEntity
     public int? ProjectId { get; set; }
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
     public DateTime? DeliveryDate { get; set; }
+    public DateTime? SentDate { get; set; }
     public string Incoterms { get; set; } = string.Empty;
     public string Currency { get; set; } = Constants.Currency.EUR;
     public string Notes { get; set; } = string.Empty;
     public bool IsConfirmed { get; set; } = false;
+    public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Draft;
 
     // Navigation properties
     public virtual Supplier Supplier { get; set; } = null!;
     public virtual Project? Project { get; set; }
     public virtual ICollection<PurchaseOrderLine> Lines { get; set; } = new List<PurchaseOrderLine>();
     public virtual ICollection<GoodsReceiptNote> GoodsReceiptNotes { get; set; } = new List<GoodsReceiptNote>();
+    public virtual ICollection<PurchaseOrderDocument> Documents { get; set; } = new List<PurchaseOrderDocument>();
+    public virtual ICollection<PurchaseOrderCommunication> Communications { get; set; } = new List<PurchaseOrderCommunication>();
 }
 
 public class PurchaseOrderLine : TenantEntity
@@ -91,4 +96,38 @@ public class PurchaseOrderLine : TenantEntity
     public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
     public virtual Material Material { get; set; } = null!;
     public virtual ICollection<GoodsReceiptNoteLine> GoodsReceiptNoteLines { get; set; } = new List<GoodsReceiptNoteLine>();
+}
+
+public class PurchaseOrderDocument : TenantEntity
+{
+    public int PurchaseOrderId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; }
+    public string FilePath { get; set; } = string.Empty;
+    public string DocumentType { get; set; } = string.Empty; // e.g., "Contract", "Invoice", "Specification"
+    public string Description { get; set; } = string.Empty;
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public string UploadedBy { get; set; } = string.Empty;
+
+    // Navigation properties
+    public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
+}
+
+public class PurchaseOrderCommunication : TenantEntity
+{
+    public int PurchaseOrderId { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string CommunicationType { get; set; } = string.Empty; // e.g., "Email", "Phone", "Meeting", "Note"
+    public string Direction { get; set; } = string.Empty; // "Inbound", "Outbound"
+    public string ContactPerson { get; set; } = string.Empty;
+    public string ContactEmail { get; set; } = string.Empty;
+    public DateTime CommunicationDate { get; set; } = DateTime.UtcNow;
+    public string RecordedBy { get; set; } = string.Empty;
+    public bool IsImportant { get; set; } = false;
+
+    // Navigation properties
+    public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
 }
